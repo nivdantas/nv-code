@@ -2716,9 +2716,15 @@ code {
 
 .nightshift-draft-glow {
   position: absolute;
-  inset: 0;
+  z-index: -1;
+  top: 63%;
+  left: 50%;
+  width: 155%;
+  max-width: min(78rem, 100vw);
+  aspect-ratio: 384 / 224;
+  translate: -50% -50%;
   pointer-events: none;
-  background: url("/nightshift-grain.png") center 40% / min(100%, 74rem) auto no-repeat;
+  background: url("/nightshift-grain.png") center / cover no-repeat;
   image-rendering: pixelated;
   opacity: 0.24;
 
