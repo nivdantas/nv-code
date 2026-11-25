@@ -56,6 +56,7 @@ import {
 import { startProviderAuthDelivery } from "./providerAuthDelivery";
 import { getRouter, type AppRouter } from "./router";
 import { appAtomRegistry } from "./rpc/atomRegistry";
+import { useScreenshotModeStore } from "./screenshotModeStore";
 import { environmentProjects } from "./state/projects";
 import { primaryRelayTracingAllowedAtom, primaryServerConfigAtom } from "./state/server";
 import { environmentShell } from "./state/shell";
@@ -158,6 +159,10 @@ function startDocumentTitle(router: AppRouter): void {
   const write = () => {
     // GuestPage titles the tab after the shared thread.
     if (onGuestPage) return;
+    if (useScreenshotModeStore.getState().active) {
+      document.title = APP_DISPLAY_NAME;
+      return;
+    }
     const thread =
       openThreadRef === null
         ? null
@@ -224,6 +229,7 @@ function startDocumentTitle(router: AppRouter): void {
   subscribeI18n(write);
   router.subscribe("onResolved", updateOpenThread);
   useComposerDraftStore.subscribe(updateOpenThread);
+  useScreenshotModeStore.subscribe(write);
 }
 
 /**

@@ -4,6 +4,12 @@ import * as Schema from "effect/Schema";
 import { create } from "zustand";
 import { normalizeProjectPathForComparison } from "@t3tools/client-runtime/state/projects";
 
+export interface SidebarProfile {
+  readonly id: string;
+  readonly name: string;
+  readonly projectKeys: readonly string[];
+}
+
 export const PERSISTED_STATE_KEY = "t3code:ui-state:v1";
 const LEGACY_PERSISTED_STATE_KEYS = [
   "t3code:renderer-state:v8",
@@ -28,6 +34,9 @@ export interface PersistedUiState {
   defaultAdvertisedEndpointKey?: string | null;
   sidebarProjectScopeKey?: string | null;
   sidebarProjectScopeKeys?: string[];
+  sidebarProfiles?: readonly SidebarProfile[];
+  sidebarActiveProfileId?: string | null;
+  sidebarBotByThreadKey?: Record<string, boolean>;
   pullRequestMergeMethod?: string;
 }
 
@@ -35,6 +44,9 @@ export interface UiProjectState {
   projectExpandedById: Record<string, boolean>;
   projectOrder: string[];
   sidebarProjectScopeKeys: string[];
+  sidebarProfiles: readonly SidebarProfile[];
+  sidebarActiveProfileId: string | null;
+  sidebarBotByThreadKey: Record<string, boolean>;
 }
 
 export interface UiThreadState {
@@ -56,6 +68,9 @@ const initialState: UiState = {
   projectExpandedById: {},
   projectOrder: [],
   sidebarProjectScopeKeys: [],
+  sidebarProfiles: [],
+  sidebarActiveProfileId: null,
+  sidebarBotByThreadKey: {},
   threadLastVisitedAtById: {},
   defaultAdvertisedEndpointKey: null,
   pullRequestMergeMethod: "merge",
@@ -93,6 +108,20 @@ function sanitizeBooleanRecord(value: unknown): Record<string, boolean> {
 
 function sanitizeOptionalKey(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function sanitizeSidebarProfiles(value: unknown): SidebarProfile[] {
+  if (!Array.isArray(value)) return [];
+  const profiles = new Map<string, SidebarProfile>();
+  for (const entry of value as unknown[]) {
+    if (!entry || typeof entry !== "object") continue;
+    const { id: rawId, name: rawName, projectKeys: rawKeys } = entry as Record<string, unknown>;
+    const id = sanitizeOptionalKey(rawId);
+    const name = typeof rawName === "string" ? rawName.trim() : "";
+    const projectKeys = sanitizeStringArray(rawKeys);
+    if (id && name && projectKeys.length > 0) profiles.set(id, { id, name, projectKeys });
+  }
+  return [...profiles.values()];
 }
 
 const isPullRequestMergeMethod = Schema.is(PullRequestMergeMethod);
@@ -135,6 +164,7 @@ export function parsePersistedState(parsed: PersistedUiState): UiState {
     parsed.projectOrder === undefined
       ? sanitizeStringArray(parsed.projectOrderCwds).map(legacyProjectCwdPreferenceKey)
       : sanitizeStringArray(parsed.projectOrder);
+  const sidebarProfiles = sanitizeSidebarProfiles(parsed.sidebarProfiles);
 
   return {
     projectExpandedById,
@@ -144,6 +174,10 @@ export function parsePersistedState(parsed: PersistedUiState): UiState {
     sidebarProjectScopeKeys: sanitizeStringArray(
       parsed.sidebarProjectScopeKeys ?? [parsed.sidebarProjectScopeKey],
     ),
+    sidebarProfiles,
+    sidebarActiveProfileId:
+      sidebarProfiles.find(({ id }) => id === parsed.sidebarActiveProfileId)?.id ?? null,
+    sidebarBotByThreadKey: sanitizeBooleanRecord(parsed.sidebarBotByThreadKey),
     pullRequestMergeMethod: isPullRequestMergeMethod(parsed.pullRequestMergeMethod)
       ? parsed.pullRequestMergeMethod
       : initialState.pullRequestMergeMethod,
@@ -185,6 +219,9 @@ export function persistState(state: UiState): void {
         threadLastVisitedAtById: state.threadLastVisitedAtById,
         defaultAdvertisedEndpointKey: state.defaultAdvertisedEndpointKey,
         sidebarProjectScopeKeys: state.sidebarProjectScopeKeys,
+        sidebarProfiles: state.sidebarProfiles,
+        sidebarActiveProfileId: state.sidebarActiveProfileId,
+        sidebarBotByThreadKey: state.sidebarBotByThreadKey,
         // Older clients read only this field.
         sidebarProjectScopeKey:
           state.sidebarProjectScopeKeys.length === 1
@@ -365,6 +402,10 @@ interface UiStateStore extends UiState {
   markThreadUnread: (threadId: string, latestTurnCompletedAt: string | null | undefined) => void;
   setDefaultAdvertisedEndpointKey: (key: string | null) => void;
   setSidebarProjectScopeKeys: (projectKeys: readonly string[]) => void;
+  selectSidebarProfile: (id: string | null) => void;
+  saveSidebarProfile: (profile: SidebarProfile) => void;
+  removeSidebarProfile: (id: string) => void;
+  setSidebarBot: (threadKey: string, isBot: boolean, markedInTitle: boolean) => void;
   setPullRequestMergeMethod: (method: PullRequestMergeMethod) => void;
   setProjectExpanded: (projectIds: string | readonly string[], expanded: boolean) => void;
   reorderProjects: (
@@ -384,6 +425,31 @@ export const useUiStateStore = create<UiStateStore>((set) => ({
     set((state) => setDefaultAdvertisedEndpointKey(state, key)),
   setSidebarProjectScopeKeys: (projectKeys) =>
     set((state) => setSidebarProjectScopeKeys(state, projectKeys)),
+  selectSidebarProfile: (id) =>
+    set((state) => ({
+      sidebarActiveProfileId:
+        state.sidebarProfiles.find((profile) => profile.id === id)?.id ?? null,
+    })),
+  saveSidebarProfile: (profile) =>
+    set((state) => ({
+      sidebarProfiles: state.sidebarProfiles.some(({ id }) => id === profile.id)
+        ? state.sidebarProfiles.map((entry) => (entry.id === profile.id ? profile : entry))
+        : [...state.sidebarProfiles, profile],
+      sidebarActiveProfileId: profile.id,
+    })),
+  removeSidebarProfile: (id) =>
+    set((state) => ({
+      sidebarProfiles: state.sidebarProfiles.filter((profile) => profile.id !== id),
+      sidebarActiveProfileId:
+        state.sidebarActiveProfileId === id ? null : state.sidebarActiveProfileId,
+    })),
+  setSidebarBot: (threadKey, isBot, markedInTitle) =>
+    set((state) => {
+      const sidebarBotByThreadKey = { ...state.sidebarBotByThreadKey };
+      if (isBot === markedInTitle) delete sidebarBotByThreadKey[threadKey];
+      else sidebarBotByThreadKey[threadKey] = isBot;
+      return { sidebarBotByThreadKey };
+    }),
   setPullRequestMergeMethod: (method) => set((state) => setPullRequestMergeMethod(state, method)),
   setProjectExpanded: (projectIds, expanded) =>
     set((state) => setProjectExpanded(state, projectIds, expanded)),

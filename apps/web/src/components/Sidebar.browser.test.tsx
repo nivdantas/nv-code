@@ -14,7 +14,7 @@ import {
 } from "@t3tools/contracts";
 import { isMacPlatform } from "@t3tools/shared/keybindings";
 import { describe, expect, it, vi } from "vite-plus/test";
-import { userEvent } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 
 import { act, fakeTimers, render } from "../../test/render";
 import { openCommandPalette } from "../commandPaletteBus";
@@ -30,6 +30,7 @@ import { readEnvironmentScope, useEnvironmentScope } from "../state/session";
 import { useOrchestrationCommand } from "../state/use-orchestration-command";
 import { useTerminalUiStateStore } from "../terminalUiStateStore";
 import { readLocalApi } from "../localApi";
+import { useUiStateStore } from "../uiStateStore";
 import type { Project } from "../types";
 import Sidebar from "./Sidebar";
 import { THREAD_JUMP_HINT_SHOW_DELAY_MS } from "./Sidebar.logic";
@@ -132,6 +133,69 @@ describe("sidebar header new thread", () => {
       expect(startThread).toHaveBeenCalledExactlyOnceWith(currentProjectRef);
     }
   });
+});
+
+it("filters bot and regular threads when switching sidebar profiles", async () => {
+  const uiState = useUiStateStore.getState();
+  using cleanup = new DisposableStack();
+  cleanup.defer(() => useUiStateStore.setState(uiState, true));
+  useUiStateStore.setState({
+    sidebarProfiles: [],
+    sidebarActiveProfileId: null,
+    sidebarProjectScopeKeys: [],
+    sidebarBotByThreadKey: {},
+  });
+  const work = project("Work repository");
+  const home = project("Home repository");
+  vi.mocked(useProjects).mockReturnValue([work, home]);
+  const bot = makeThreadFixture({
+    environmentId: work.environmentId,
+    id: ThreadId.make("robot"),
+    projectId: work.id,
+    title: "[[t3plus:bot:v1]] Release assistant",
+  });
+  const regular = makeThreadFixture({
+    environmentId: home.environmentId,
+    id: ThreadId.make("notes"),
+    projectId: home.id,
+    title: "Notes",
+  });
+  vi.mocked(useQuietThreadShells).mockReturnValue([bot, regular]);
+  vi.mocked(useThreadRouteTarget).mockReturnValue({
+    kind: "server",
+    threadRef: scopeThreadRef(home.environmentId, regular.id),
+  });
+
+  await using screen = await render(
+    <>
+      <style>{appCss}</style>
+      <SidebarProvider>
+        <Sidebar routeReveal={{ observedKey: null, pendingKey: null }} />
+      </SidebarProvider>
+    </>,
+  );
+  await expect
+    .element(screen.getByRole("button", { name: /Bot: Release assistant/ }))
+    .toBeVisible();
+  await expect.element(screen.getByText("Notes", { exact: true })).toBeVisible();
+
+  await userEvent.click(screen.getByRole("button", { name: "Add profile" }));
+  const dialog = page.getByRole("dialog", { name: "Add profile" });
+  await userEvent.fill(dialog.getByRole("textbox", { name: "Profile name" }), "Work");
+  await userEvent.click(dialog.getByText("Work repository", { exact: true }));
+  await userEvent.click(dialog.getByRole("button", { name: "Save profile" }));
+
+  await expect
+    .element(screen.getByRole("button", { name: "Work", exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+  await expect.element(screen.getByText("Notes", { exact: true })).not.toBeInTheDocument();
+  await expect
+    .element(screen.getByRole("button", { name: /Bot: Release assistant/ }))
+    .toBeVisible();
+
+  const tabs = screen.getByRole("group", { name: "Sidebar profiles" });
+  await userEvent.click(tabs.getByRole("button", { name: "All projects" }));
+  await expect.element(screen.getByText("Notes", { exact: true })).toBeVisible();
 });
 
 // regression: #41549 a grouped project's folder New thread went to the primary copy

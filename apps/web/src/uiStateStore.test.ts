@@ -20,6 +20,9 @@ function makeUiState(overrides: Partial<UiState> = {}): UiState {
     projectExpandedById: {},
     projectOrder: [],
     sidebarProjectScopeKeys: [],
+    sidebarProfiles: [],
+    sidebarActiveProfileId: null,
+    sidebarBotByThreadKey: {},
     threadLastVisitedAtById: {},
     defaultAdvertisedEndpointKey: null,
     pullRequestMergeMethod: "merge",
@@ -118,6 +121,9 @@ describe("parsePersistedState", () => {
       },
       defaultAdvertisedEndpointKey: "desktop-core:lan:http",
       sidebarProjectScopeKeys: [],
+      sidebarProfiles: [],
+      sidebarActiveProfileId: null,
+      sidebarBotByThreadKey: {},
       pullRequestMergeMethod: "merge",
     });
   });
@@ -205,6 +211,9 @@ describe("uiStateStore persistence", () => {
       defaultAdvertisedEndpointKey: "desktop-core:lan:http",
       sidebarProjectScopeKeys: [],
       sidebarProjectScopeKey: null,
+      sidebarProfiles: [],
+      sidebarActiveProfileId: null,
+      sidebarBotByThreadKey: {},
       pullRequestMergeMethod: "merge",
     });
     expect(parsePersistedState(persisted)).toEqual({
@@ -212,15 +221,31 @@ describe("uiStateStore persistence", () => {
     });
   });
 
-  it("restores the sidebar project scope across reloads", () => {
+  it("restores the sidebar scope, profiles and bot choices across reloads", () => {
     const keys = ["github.com/pingdotgg/t3code", "github.com/pingdotgg/uploadthing"];
-    persistState(makeUiState({ sidebarProjectScopeKeys: keys }));
+    const profile = { id: "work", name: "Work", projectKeys: keys };
+    const botChoices = { "local:deploy": true, "remote:dispatch": false };
+    persistState(
+      makeUiState({
+        sidebarProjectScopeKeys: keys,
+        sidebarProfiles: [profile],
+        sidebarActiveProfileId: profile.id,
+        sidebarBotByThreadKey: botChoices,
+      }),
+    );
 
     const persisted = JSON.parse(
       localStorageStub.getItem(PERSISTED_STATE_KEY) ?? "{}",
     ) as PersistedUiState;
 
-    expect(parsePersistedState(persisted).sidebarProjectScopeKeys).toEqual(keys);
+    const restored = parsePersistedState(persisted);
+    expect(restored.sidebarProjectScopeKeys).toEqual(keys);
+    expect(restored.sidebarProfiles).toEqual([profile]);
+    expect(restored.sidebarActiveProfileId).toBe(profile.id);
+    expect(restored.sidebarBotByThreadKey).toEqual(botChoices);
+    expect(
+      parsePersistedState({ ...persisted, sidebarProfiles: [] }).sidebarActiveProfileId,
+    ).toBeNull();
   });
 
   it("keeps a single-project scope readable by older clients", () => {

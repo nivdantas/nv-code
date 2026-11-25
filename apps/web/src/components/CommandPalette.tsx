@@ -62,6 +62,7 @@ import { useLocation, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeftIcon,
   BugIcon,
+  CameraIcon,
   ChartNoAxesColumnIcon,
   CheckIcon,
   ChevronRightIcon,
@@ -86,6 +87,7 @@ import {
   WorkflowIcon,
 } from "lucide-react";
 import { openThreadFind } from "./chat/threadFindStore";
+import { useScreenshotModeStore } from "../screenshotModeStore";
 import { dispatchPreviewAction } from "./preview/previewActionBus";
 import { previewBridge } from "./preview/previewBridge";
 import {
@@ -1785,6 +1787,18 @@ function OpenCommandPaletteDialog(props: {
     shortcutCommand: "usage.open",
     run: async () => {
       await navigate({ to: "/usage" });
+    },
+  });
+
+  actionItems.push({
+    kind: "action",
+    value: "action:screenshot-mode",
+    searchTerms: ["screenshot", "privacy", "demo", "redact", "recording"],
+    title: gt("Enter screenshot mode"),
+    icon: <CameraIcon className={ITEM_ICON_CLASS} />,
+    shortcutCommand: "screenshotMode.toggle",
+    run: async () => {
+      useScreenshotModeStore.setState({ active: true });
     },
   });
 

@@ -1,5 +1,7 @@
 const NIGHTLY_SERVER_VERSION_PATTERN = /^[^-+]+-(?:nightly|preview)\.\d{8}\.\d+$/;
 
+export const FORK_APP_NAME = "Nightshift Code";
+
 export function formatAppDisplayName(input: {
   readonly baseName: string;
   readonly stageLabel: string;

@@ -300,6 +300,7 @@ import {
 import { useEnvironmentShellHasSnapshot } from "../state/shell";
 import { ChatComposer, type ChatComposerHandle } from "./chat/ChatComposer";
 import { DraftHeroHeadline } from "./chat/DraftHeroHeadline";
+import { DraftUsageWidgets } from "./usage/DraftUsageWidgets";
 import { ExpandedImageDialogHost, openExpandedImagePreview } from "./chat/ExpandedImageDialog";
 import {
   BranchRestoreConfirmHost,
@@ -4084,6 +4085,11 @@ export default function ChatView(props: ChatViewProps) {
                           </div>
                         </div>
                       </ComposerSurface.Shell>
+                      {isDraftHeroState && !embedded && composerBannerItems.length === 0 ? (
+                        <div className="absolute inset-x-0 top-full pt-4">
+                          <DraftUsageWidgets />
+                        </div>
+                      ) : null}
                       {isDraftHeroState && composerBannerItems.length > 0 ? (
                         // Out of flow, like the headline, so a notice never moves the centered composer.
                         // Short windows pin the composer to the bottom, where an out-of-flow notice

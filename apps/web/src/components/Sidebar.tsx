@@ -260,6 +260,8 @@ import {
 import { SidebarContent, SidebarGroup, useSidebar } from "./ui/sidebar";
 import { SidebarChromeFooter, SidebarChromeHeader } from "./sidebar/SidebarChrome";
 import { SidebarHeaderIconButton, SidebarThreadHeader } from "./sidebar/SidebarThreadHeader";
+import { SidebarProfileTabs } from "./sidebar/SidebarProfileTabs";
+import { botTitleWithoutMarker } from "./sidebar/SidebarBotAvatar";
 import { TooltipProvider, TooltipScrollDismissArea } from "./ui/tooltip";
 import {
   composerDraftHasUserContent,
@@ -1029,6 +1031,11 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   );
   const environmentMachineById = useEnvironmentMachines();
   const projectGroupsRef = useRef(projectGroups);
+  const sidebarProfiles = useUiStateStore((store) => store.sidebarProfiles);
+  const activeProfile = useUiStateStore(
+    (store) =>
+      store.sidebarProfiles.find((profile) => profile.id === store.sidebarActiveProfileId) ?? null,
+  );
   const persistedProjectScopeKeys = useUiStateStore((store) => store.sidebarProjectScopeKeys);
   const setPersistedProjectScopeKeys = useUiStateStore((store) => store.setSidebarProjectScopeKeys);
   const [projectScopeMenuState, dispatchProjectScopeMenu] = useReducer(
@@ -1097,10 +1104,18 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
 
   // A selection made under one scope can hold threads the next scope hides.
   // The viewport outlives the scope and does not anchor, so a new list starts at the top.
-  const setProjectScopeKeys = (keys: readonly string[]) => {
+  const resetSidebarScopeView = () => {
     clearSelection();
-    setPersistedProjectScopeKeys(keys);
     scrollSidebarToTop(sidebarContentRef.current);
+  };
+  const setProjectScopeKeys = (keys: readonly string[]) => {
+    resetSidebarScopeView();
+    if (activeProfile && keys.length > 0) {
+      useUiStateStore.getState().saveSidebarProfile({ ...activeProfile, projectKeys: keys });
+    } else {
+      if (activeProfile) useUiStateStore.getState().selectSidebarProfile(null);
+      setPersistedProjectScopeKeys(keys);
+    }
   };
   // A scope whose project is gone reads as all projects once every snapshot has
   // loaded. The stored keys are left alone, so the scope returns with its project.
@@ -1111,7 +1126,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   );
   const chosenProjectScopeKeys = resolveSidebarProjectScopeKeys({
     groups: projectGroups,
-    keys: persistedProjectScopeKeys,
+    keys: activeProfile?.projectKeys ?? persistedProjectScopeKeys,
     settings: projectGroupingSettings,
     canClearMissingScope: allProjectSnapshotsReady && allProjectConfigsReady,
   }).filter((key) => !archivedProjectKeys.has(key));
@@ -1119,7 +1134,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     chosenProjectScopeKeys.includes(project.projectKey),
   );
   const chosenScopeProjectKeys =
-    chosenProjectGroups.length === 0
+    chosenProjectGroups.length === 0 && activeProfile === null
       ? null
       : new Set(
           chosenProjectGroups.flatMap((project) =>
@@ -1151,7 +1166,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   // scrolled away; a remount starts at the top, so each mount scrolls to the open
   // thread once. Render decides the widening, so the first frame of the new route
   // already lists the row; the active row's ref callback scrolls to it.
-  const { widensScope: revealWidensScope } = resolveSidebarRouteReveal({
+  const { widensScope: routeWidensScope } = resolveSidebarRouteReveal({
     reveal: routeReveal,
     routeKey: routeRowThreadKey,
     routeKeyInPlace,
@@ -1160,8 +1175,13 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     delegatedUnderParent,
     findThread: (key) => threads.find((candidate) => threadShellKey(candidate) === key),
   });
+  const revealWidensScope = activeProfile === null && routeWidensScope;
   const projectScopeKeys = revealWidensScope ? [] : chosenProjectScopeKeys;
-  const projectScopeKey = projectScopeKeys.length === 0 ? null : projectScopeKeys.join("\n");
+  const projectScopeKey = activeProfile
+    ? [activeProfile.id, ...projectScopeKeys].join("\n")
+    : projectScopeKeys.length === 0
+      ? null
+      : projectScopeKeys.join("\n");
   const toggleProjectScopeKey = (key: string) =>
     setProjectScopeKeys(
       projectScopeKeys.includes(key)
@@ -1208,7 +1228,11 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   const scopedProjectRefs = scopedProjectGroups.flatMap((project) => project.memberProjectRefs);
   const scopedProjectKeys = revealWidensScope ? null : chosenScopeProjectKeys;
   const threadSearch = useThreadSearch(
-    connectedEnvironmentIds,
+    scopedProjectKeys === null
+      ? connectedEnvironmentIds
+      : connectedEnvironmentIds.filter((id) =>
+          scopedProjectRefs.some((ref) => ref.environmentId === id),
+        ),
     threadSearchQuery,
     scopedProjectGroups.length === 0
       ? {}
@@ -1380,7 +1404,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     routeRowThreadKey,
     departingThreadKey,
     folderGroups: boringSidebarEnabled
-      ? scopedProjectGroups.length === 0
+      ? scopedProjectKeys === null
         ? // An archived project keeps a folder for its active threads, below the rest.
           [...scopeGroups, ...projectGroups.filter((project) => project.archived)]
         : scopedProjectGroups
@@ -2703,6 +2727,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         const isSettled = settledThreadKeysRef.current.has(threadKey);
         const isSnoozed = snoozedThreadKeysRef.current.has(threadKey);
         const isPinned = thread.pinnedAt != null;
+        const markedInTitle = botTitleWithoutMarker(thread.title) !== null;
+        const isBot = useUiStateStore.getState().sidebarBotByThreadKey[threadKey] ?? markedInTitle;
         const snoozePresets = resolveSnoozePresets(
           new Date(),
           timestampFormat,
@@ -2746,6 +2772,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               ),
               canTurnIntoProject: canTurnThreadIntoProject(threadRef),
               canRename: !fromSearch,
+              isBot,
               supports: {
                 settlement: configLoaded,
                 autoSettleOptOut: supportsAutoSettleOptOut,
@@ -2871,6 +2898,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           }
           case "rename":
             startThreadRename(threadRef, thread.title);
+            return;
+          case "toggle-bot":
+            useUiStateStore.getState().setSidebarBot(threadKey, !isBot, markedInTitle);
             return;
           case "share-guest":
             openGuestShareDialog(threadRef);
@@ -3337,6 +3367,25 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               searchResultCount={threadSearchResults.length}
               activeSearchResultIndex={activeSearchResultIndex}
               onClearSearch={clearThreadSearch}
+            />
+            <SidebarProfileTabs
+              profiles={sidebarProfiles}
+              activeProfile={activeProfile}
+              projects={scopeGroups}
+              currentProjectKeys={projectScopeKeys}
+              onSelect={(id) => {
+                resetSidebarScopeView();
+                useUiStateStore.getState().selectSidebarProfile(id);
+                if (id === null) setPersistedProjectScopeKeys([]);
+              }}
+              onSave={(profile) => {
+                resetSidebarScopeView();
+                useUiStateStore.getState().saveSidebarProfile(profile);
+              }}
+              onRemove={(id) => {
+                resetSidebarScopeView();
+                useUiStateStore.getState().removeSidebarProfile(id);
+              }}
             />
           </SidebarGroup>
         }
