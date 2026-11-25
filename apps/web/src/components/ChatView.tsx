@@ -300,7 +300,7 @@ import {
 import { useEnvironmentShellHasSnapshot } from "../state/shell";
 import { ChatComposer, type ChatComposerHandle } from "./chat/ChatComposer";
 import { DraftHeroHeadline } from "./chat/DraftHeroHeadline";
-import { DraftUsageWidgets } from "./usage/DraftUsageWidgets";
+import { DraftUsageWidgets } from "~/nv/usage/DraftUsageWidgets";
 import { ExpandedImageDialogHost, openExpandedImagePreview } from "./chat/ExpandedImageDialog";
 import {
   BranchRestoreConfirmHost,
@@ -3793,7 +3793,7 @@ export default function ChatView(props: ChatViewProps) {
                   className="group/composer-stack pointer-events-auto relative z-10 mx-auto w-full max-w-(--chat-content-max-width)"
                 >
                   {isDraftHeroState && !embedded ? (
-                    <div className="nightshift-draft-glow" aria-hidden />
+                    <div className="nv-draft-glow" aria-hidden />
                   ) : null}
                   {isDraftHeroState ? (
                     <div className="absolute inset-x-0 bottom-full">
@@ -3826,7 +3826,7 @@ export default function ChatView(props: ChatViewProps) {
                     <div className="relative">
                       <ComposerSurface.Shell
                         contextRow={showComposerContextStrip}
-                        data-nightshift-draft={isDraftHeroState && !embedded ? "" : undefined}
+                        data-nv-draft={isDraftHeroState && !embedded ? "" : undefined}
                       >
                         <ComposerSurface.Host
                           inert={queuedRunEdit.isSaving}

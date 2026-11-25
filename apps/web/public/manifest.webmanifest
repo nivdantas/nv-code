@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Nightshift Code",
-  "short_name": "Nightshift",
+  "name": "NV-CODE",
+  "short_name": "NV-CODE",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -9,7 +9,7 @@
   "theme_color": "#161616",
   "icons": [
     {
-      "src": "/nightshift-icon.png",
+      "src": "/nv-code-icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"

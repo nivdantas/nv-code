@@ -21,10 +21,10 @@ import { useMediaQuery } from "~/hooks/useMediaQuery";
 import { useNowMinute } from "~/hooks/useNowMinute";
 import { environmentPresentations } from "~/state/presentation";
 import { useUsage } from "~/state/usage";
-import { Button } from "../ui/button";
-import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import { PaceIcon } from "./UsageLimits";
-import { PROVIDER_PRESENTATION } from "./usageProviders";
+import { Button } from "~/components/ui/button";
+import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
+import { PaceIcon } from "~/components/usage/UsageLimits";
+import { PROVIDER_PRESENTATION } from "~/components/usage/usageProviders";
 
 const ACTIVITY_DAYS = 28;
 const PROVIDERS = [PROVIDER_PRESENTATION.codex, PROVIDER_PRESENTATION.claude];
@@ -62,7 +62,7 @@ function WeeklyLimit({
         className="h-3 overflow-hidden rounded-sm bg-muted"
       >
         <div
-          className="nightshift-grain-fill h-full"
+          className="nv-grain-fill h-full"
           style={{ width: `${pool.remainingPercent}%`, backgroundColor: color }}
         />
       </div>
@@ -81,7 +81,7 @@ function WeeklyLimitsWidget() {
     return (
       <section
         key={driverKind}
-        className="nightshift-usage-card flex min-w-0 flex-col gap-2 rounded-xl border border-border/75 bg-card px-3 py-2.5"
+        className="nv-usage-card flex min-w-0 flex-col gap-2 rounded-xl border border-border/75 bg-card px-3 py-2.5"
       >
         <h3 className="text-xs font-semibold">
           <T>Weekly limits</T>
@@ -113,7 +113,7 @@ function UsageActivityWidget() {
 
   return (
     <>
-      <section className="nightshift-usage-card flex min-w-0 flex-col gap-2 rounded-xl border border-border/75 bg-card px-3 py-2.5">
+      <section className="nv-usage-card flex min-w-0 flex-col gap-2 rounded-xl border border-border/75 bg-card px-3 py-2.5">
         <h3 className="text-xs font-semibold">
           <T>Token activity</T>
         </h3>
@@ -144,7 +144,7 @@ function UsageActivityWidget() {
                     <TooltipTrigger
                       render={
                         <span
-                          className="nightshift-grain-fill aspect-square min-w-0 rounded-xs bg-muted"
+                          className="nv-grain-fill aspect-square min-w-0 rounded-xs bg-muted"
                           style={
                             tokens > 0
                               ? {
@@ -168,7 +168,7 @@ function UsageActivityWidget() {
           </>
         )}
       </section>
-      <section className="nightshift-usage-card flex min-w-0 flex-col gap-2 rounded-xl border border-border/75 bg-card px-3 py-2.5">
+      <section className="nv-usage-card flex min-w-0 flex-col gap-2 rounded-xl border border-border/75 bg-card px-3 py-2.5">
         <h3 className="text-xs font-semibold">{gt("Daily token activity")}</h3>
         <div
           className="flex h-12 items-end gap-0.5 border-b border-border"
@@ -178,7 +178,7 @@ function UsageActivityWidget() {
           {days.map((day) => (
             <div
               key={day}
-              className="nightshift-grain-fill min-w-0 flex-1 rounded-t-xs bg-primary"
+              className="nv-grain-fill min-w-0 flex-1 rounded-t-xs bg-primary"
               style={{ height: `${100 * ((daily.get(day)?.totalTokens ?? 0) / peak)}%` }}
             />
           ))}

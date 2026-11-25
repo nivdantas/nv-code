@@ -1,0 +1,38 @@
+.nv-draft-glow {
+  position: absolute;
+  z-index: -1;
+  top: 63%;
+  left: 50%;
+  width: 155%;
+  max-width: min(78rem, 100vw);
+  aspect-ratio: 384 / 224;
+  translate: -50% -50%;
+  pointer-events: none;
+  background: url("/nv-grain.png") center / cover no-repeat;
+  image-rendering: pixelated;
+  opacity: 0.24;
+
+  @variant dark {
+    opacity: 0.94;
+  }
+}
+
+[data-nv-draft] {
+  @variant dark {
+    --glass-opacity: 62%;
+    --glass-blur: 0px;
+  }
+}
+
+.nv-usage-card {
+  background-image: radial-gradient(
+    ellipse at top left,
+    color-mix(in oklch, var(--primary) 12%, transparent),
+    transparent 78%
+  );
+}
+
+.nv-grain-fill {
+  background-image: repeating-conic-gradient(rgb(0 0 0 / 48%) 0% 25%, transparent 0% 50%);
+  background-size: 4px 4px;
+}

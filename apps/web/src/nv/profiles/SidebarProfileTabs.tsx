@@ -3,9 +3,10 @@ import { PencilIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 
 import { cn, randomUUID } from "~/lib/utils";
-import type { SidebarProfile } from "~/uiStateStore";
-import { Button } from "../ui/button";
-import { Checkbox } from "../ui/checkbox";
+import { type SidebarProfile, useNvStore } from "../nvStore";
+import { useActiveSidebarProfile } from "./profileScope";
+import { Button } from "~/components/ui/button";
+import { Checkbox } from "~/components/ui/checkbox";
 import {
   Dialog,
   DialogDescription,
@@ -13,34 +14,48 @@ import {
   DialogHeader,
   DialogPopup,
   DialogTitle,
-} from "../ui/dialog";
-import { Input } from "../ui/input";
-import { SidebarHeaderIconButton } from "./SidebarThreadHeader";
+} from "~/components/ui/dialog";
+import { Input } from "~/components/ui/input";
+import { ColorDot, SidebarColorChoice, profileColor } from "./SidebarColorChoice";
+import { SidebarHeaderIconButton } from "~/components/sidebar/SidebarThreadHeader";
 
 type ProjectChoice = { readonly projectKey: string; readonly displayName: string };
 
 export function SidebarProfileTabs({
-  profiles,
-  activeProfile,
   projects,
   currentProjectKeys,
-  onSelect,
-  onSave,
-  onRemove,
+  onScopeChange,
+  onShowAll,
 }: {
-  profiles: readonly SidebarProfile[];
-  activeProfile: SidebarProfile | null;
   projects: readonly ProjectChoice[];
   currentProjectKeys: readonly string[];
-  onSelect: (id: string | null) => void;
-  onSave: (profile: SidebarProfile) => void;
-  onRemove: (id: string) => void;
+  /** Runs before any profile change, since each change swaps the listed threads. */
+  onScopeChange: () => void;
+  onShowAll: () => void;
 }) {
+  const profiles = useNvStore((state) => state.sidebarProfiles);
+  const activeProfile = useActiveSidebarProfile();
+  const onSelect = (id: string | null) => {
+    onScopeChange();
+    useNvStore.getState().selectSidebarProfile(id);
+    if (id === null) onShowAll();
+  };
+  const onSave = (profile: SidebarProfile) => {
+    onScopeChange();
+    useNvStore.getState().saveSidebarProfile(profile);
+  };
+  const onRemove = (id: string) => {
+    onScopeChange();
+    useNvStore.getState().removeSidebarProfile(id);
+  };
   const gt = useGT();
   const [editing, setEditing] = useState<SidebarProfile | "new" | null>(null);
   if (profiles.length === 0 && projects.length === 0) return null;
 
-  const tabs = [{ id: null, name: gt("All projects") }, ...profiles];
+  const tabs = [
+    { id: null, name: gt("All projects"), color: null },
+    ...profiles.map((profile) => ({ ...profile, color: profileColor(profile) })),
+  ];
   return (
     <div className="mt-1 flex min-w-0 items-center gap-1">
       <div
@@ -48,7 +63,7 @@ export function SidebarProfileTabs({
         aria-label={gt("Sidebar profiles")}
         className="flex min-w-0 flex-1 gap-0.5 overflow-x-auto px-0.5 py-1 [scrollbar-width:none]"
       >
-        {tabs.map(({ id, name }) => {
+        {tabs.map(({ id, name, color }) => {
           const selected = id === (activeProfile?.id ?? null);
           return (
             <button
@@ -57,13 +72,14 @@ export function SidebarProfileTabs({
               aria-pressed={selected}
               onClick={() => onSelect(id)}
               className={cn(
-                "max-w-32 shrink-0 truncate rounded-md px-2 py-1 text-xs font-medium focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:outline-none",
+                "flex max-w-32 shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:outline-none",
                 selected
                   ? "bg-sidebar-row-hover text-sidebar-foreground"
                   : "text-sidebar-muted-foreground hover:bg-sidebar-row-hover hover:text-sidebar-foreground",
               )}
             >
-              {name}
+              {color ? <ColorDot color={color} /> : null}
+              <span className="truncate">{name}</span>
             </button>
           );
         })}
@@ -121,6 +137,10 @@ function SidebarProfileDialog({
   const gt = useGT();
   const [name, setName] = useState(profile?.name ?? "");
   const [projectKeys, setProjectKeys] = useState(profile?.projectKeys ?? currentProjectKeys);
+  const [id] = useState(() => profile?.id ?? randomUUID());
+  const [color, setColor] = useState(() =>
+    profileColor(profile ?? { id, name: "", projectKeys: [] }),
+  );
   const projectChoices = [
     ...projects,
     ...(profile?.projectKeys ?? [])
@@ -136,8 +156,7 @@ function SidebarProfileDialog({
           className="flex min-h-0 flex-col"
           onSubmit={(event) => {
             event.preventDefault();
-            if (canSave)
-              onSave({ id: profile?.id ?? randomUUID(), name: name.trim(), projectKeys });
+            if (canSave) onSave({ id, name: name.trim(), projectKeys, color });
           }}
         >
           <DialogHeader>
@@ -155,6 +174,7 @@ function SidebarProfileDialog({
                 maxLength={48}
               />
             </label>
+            <SidebarColorChoice legend={gt("Color")} value={color} onChange={setColor} />
             <fieldset className="min-h-0 min-w-0">
               <legend className="mb-1.5 text-sm font-medium">
                 <T>Projects</T>

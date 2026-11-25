@@ -64,9 +64,11 @@ import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
 const LINUX_ICON_SIZES = [16, 22, 24, 32, 48, 64, 128, 256, 512] as const;
 const DESKTOP_APP_ID = "com.t3tools.t3code";
-const NIGHTSHIFT_MAC_APP_ID = "com.nivdantas.nightshift-code";
-const NIGHTSHIFT_MAC_APP_NAME = "Nightshift Code";
-const NIGHTSHIFT_ICON = "apps/web/public/nightshift-icon.png";
+const NV_CODE_MAC_APP_ID = "com.nivdantas.nightshift-code";
+const NV_CODE_MAC_APP_NAME = "NV-CODE";
+const NV_CODE_ICON = "apps/web/public/nv-code-icon.png";
+// Electron uses the startup package name for Safe Storage before app.setName runs.
+const MAC_KEYCHAIN_APP_NAME = "Nightshift Code";
 const APPLE_TEAM_ID_PATTERN = /^[A-Z0-9]{10}$/u;
 
 const BuildPlatform = Schema.Literals(["mac", "linux", "win"]);
@@ -1300,7 +1302,7 @@ export function resolveMacPasskeySigningConfiguration(
   }
 
   return {
-    appId: NIGHTSHIFT_MAC_APP_ID,
+    appId: NV_CODE_MAC_APP_ID,
     teamId,
     rpDomains: uniqueRpDomains,
     provisioningProfilePath,
@@ -2773,14 +2775,14 @@ export function resolveDesktopWebAssetBrand(version: string): WebAssetBrand {
 export function resolveDesktopBuildIconAssets(version: string): DesktopBuildIconAssets {
   if (resolveDesktopUpdateChannel(version) === "nightly") {
     return {
-      macIconPng: NIGHTSHIFT_ICON,
+      macIconPng: NV_CODE_ICON,
       linuxIconPng: BRAND_ASSET_PATHS.nightlyLinuxIconPng,
       windowsIconIco: BRAND_ASSET_PATHS.nightlyWindowsIconIco,
     };
   }
 
   return {
-    macIconPng: NIGHTSHIFT_ICON,
+    macIconPng: NV_CODE_ICON,
     linuxIconPng: BRAND_ASSET_PATHS.productionLinuxIconPng,
     windowsIconIco: BRAND_ASSET_PATHS.productionWindowsIconIco,
   };
@@ -2825,11 +2827,11 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
 ) {
   const buildConfig: Record<string, unknown> = {
     afterPack: (yield* Path.Path).join(yield* RepoRoot, "scripts/prepare-server-compile-cache.cjs"),
-    appId: platform === "mac" ? NIGHTSHIFT_MAC_APP_ID : DESKTOP_APP_ID,
-    productName: platform === "mac" ? NIGHTSHIFT_MAC_APP_NAME : resolveDesktopProductName(version),
+    appId: platform === "mac" ? NV_CODE_MAC_APP_ID : DESKTOP_APP_ID,
+    productName: platform === "mac" ? NV_CODE_MAC_APP_NAME : resolveDesktopProductName(version),
     artifactName:
       platform === "mac"
-        ? "Nightshift-Code-${version}-${arch}.${ext}"
+        ? "NV-CODE-${version}-${arch}.${ext}"
         : "T3-Code-${version}-${arch}.${ext}",
     electronLanguages: [...DESKTOP_ELECTRON_LANGUAGES],
     files: [
@@ -2883,24 +2885,15 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       extendInfo: {
         // macOS 26 offers Messages/Mail codes in every text field unless opted out.
         NSAutoFillRequiresTextContentTypeForOneTimeCodeOnMac: true,
-        NSLocalNetworkUsageDescription:
-          "T3 Code connects to devices on your local network for remote environments and commands run by terminals and coding agents.",
-        NSCalendarsUsageDescription:
-          "Commands you run in T3 Code may need access to your calendars.",
-        NSCalendarsFullAccessUsageDescription:
-          "Commands you run in T3 Code may need to read and write your calendar events.",
-        NSCalendarsWriteOnlyAccessUsageDescription:
-          "Commands you run in T3 Code may need to add events to your calendars.",
-        NSScreenCaptureUsageDescription:
-          "T3 Code captures the active window when you use the window capture shortcut.",
-        NSCameraUsageDescription:
-          "T3 Code lets commands run by terminals and coding agents use the camera.",
-        NSMicrophoneUsageDescription:
-          "T3 Code lets commands run by terminals and coding agents use the microphone.",
-        NSAppleEventsUsageDescription:
-          "T3 Code lets commands run by terminals and coding agents control other apps.",
-        NSSpeechRecognitionUsageDescription:
-          "T3 Code transcribes your dictation on this Mac when you choose Apple Speech.",
+        NSLocalNetworkUsageDescription: `${NV_CODE_MAC_APP_NAME} connects to devices on your local network for remote environments and commands run by terminals and coding agents.`,
+        NSCalendarsUsageDescription: `Commands you run in ${NV_CODE_MAC_APP_NAME} may need access to your calendars.`,
+        NSCalendarsFullAccessUsageDescription: `Commands you run in ${NV_CODE_MAC_APP_NAME} may need to read and write your calendar events.`,
+        NSCalendarsWriteOnlyAccessUsageDescription: `Commands you run in ${NV_CODE_MAC_APP_NAME} may need to add events to your calendars.`,
+        NSScreenCaptureUsageDescription: `${NV_CODE_MAC_APP_NAME} captures the active window when you use the window capture shortcut.`,
+        NSCameraUsageDescription: `${NV_CODE_MAC_APP_NAME} lets commands run by terminals and coding agents use the camera.`,
+        NSMicrophoneUsageDescription: `${NV_CODE_MAC_APP_NAME} lets commands run by terminals and coding agents use the microphone.`,
+        NSAppleEventsUsageDescription: `${NV_CODE_MAC_APP_NAME} lets commands run by terminals and coding agents control other apps.`,
+        NSSpeechRecognitionUsageDescription: `${NV_CODE_MAC_APP_NAME} transcribes your dictation on this Mac when you choose Apple Speech.`,
         // macOS lists an app under Default web browser only when it opens web
         // pages as documents as well as http and https links (see protocols).
         CFBundleDocumentTypes: [
@@ -2914,7 +2907,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       },
       protocols: [
         {
-          name: "T3 Code",
+          name: NV_CODE_MAC_APP_NAME,
           schemes: ["t3code", "t3code-dev"],
         },
         {
@@ -2938,7 +2931,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   if (platform === "mac" && target === "dmg") {
     buildConfig.dmg = {
       // Finder caches DMG backgrounds by volume name; give each installer its own.
-      title: `${NIGHTSHIFT_MAC_APP_NAME} ${version} Installer`,
+      title: `${NV_CODE_MAC_APP_NAME} ${version} Installer`,
       background: `dmg/dmg-background-${updateChannel}.png`,
       window: {
         width: 640,
@@ -3967,9 +3960,8 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
       ? path.join(stageAppDir, WINDOWS_SERVER_RESOURCE_SOURCE_DIR, WINDOWS_SERVER_ASAR_RESOURCE)
       : undefined;
   const stagePackageJson: StagePackageJson = {
-    // Electron reads this manifest before the desktop main process sets its display name.
     ...(options.platform === "mac"
-      ? { name: "nightshift-code", productName: NIGHTSHIFT_MAC_APP_NAME }
+      ? { name: "nightshift-code", productName: MAC_KEYCHAIN_APP_NAME }
       : { name: "t3code" }),
     version: appVersion,
     buildVersion: appVersion,

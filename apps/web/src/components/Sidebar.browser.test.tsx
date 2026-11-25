@@ -31,6 +31,7 @@ import { useOrchestrationCommand } from "../state/use-orchestration-command";
 import { useTerminalUiStateStore } from "../terminalUiStateStore";
 import { readLocalApi } from "../localApi";
 import { useUiStateStore } from "../uiStateStore";
+import { useNvStore } from "../nv/nvStore";
 import type { Project } from "../types";
 import Sidebar from "./Sidebar";
 import { THREAD_JUMP_HINT_SHOW_DELAY_MS } from "./Sidebar.logic";
@@ -137,12 +138,14 @@ describe("sidebar header new thread", () => {
 
 it("filters bot and regular threads when switching sidebar profiles", async () => {
   const uiState = useUiStateStore.getState();
+  const nvState = useNvStore.getState();
   using cleanup = new DisposableStack();
   cleanup.defer(() => useUiStateStore.setState(uiState, true));
-  useUiStateStore.setState({
+  cleanup.defer(() => useNvStore.setState(nvState, true));
+  useUiStateStore.setState({ sidebarProjectScopeKeys: [] });
+  useNvStore.setState({
     sidebarProfiles: [],
     sidebarActiveProfileId: null,
-    sidebarProjectScopeKeys: [],
     sidebarBotByThreadKey: {},
   });
   const work = project("Work repository");

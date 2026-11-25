@@ -20,7 +20,8 @@ import { resolveTaggedSourceVersion } from "../../scripts/lib/tagged-source-vers
 import { thirdPartyLicensesPlugin } from "../../scripts/lib/third-party-licenses";
 import { tailwindPlugins } from "./vite/tailwind";
 import { warmBundledDevPlugin } from "./vite/warmBundledDev";
-import { formatAppDisplayName, FORK_APP_NAME, resolveWebAppStageLabel } from "./src/branding.logic";
+import { formatAppDisplayName, resolveWebAppStageLabel } from "./src/branding.logic";
+import { NV_APP_NAME } from "./src/nv/brand";
 
 const repoEnv = loadRepoEnv();
 Object.assign(process.env, repoEnv);
@@ -290,7 +291,7 @@ function bootstrapTitlePlugin(): Plugin {
         hostedAppChannel: configuredHostedAppChannel,
         development,
       });
-      const title = formatAppDisplayName({ baseName: FORK_APP_NAME, stageLabel });
+      const title = formatAppDisplayName({ baseName: NV_APP_NAME, stageLabel });
       return html.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`);
     },
   };

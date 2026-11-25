@@ -56,7 +56,7 @@ import {
 import { startProviderAuthDelivery } from "./providerAuthDelivery";
 import { getRouter, type AppRouter } from "./router";
 import { appAtomRegistry } from "./rpc/atomRegistry";
-import { useScreenshotModeStore } from "./screenshotModeStore";
+import { useScreenshotModeStore } from "./nv/screenshot/screenshotModeStore";
 import { environmentProjects } from "./state/projects";
 import { primaryRelayTracingAllowedAtom, primaryServerConfigAtom } from "./state/server";
 import { environmentShell } from "./state/shell";

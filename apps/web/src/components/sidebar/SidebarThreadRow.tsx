@@ -76,7 +76,8 @@ import type { MessageResolver } from "../../i18n/messages";
 import { useRightPanelStore } from "../../rightPanelStore";
 import { useOpenPrLink } from "../../lib/openPullRequestLink";
 import { useUiStateStore } from "../../uiStateStore";
-import { SidebarBotAvatar, botTitleWithoutMarker } from "./SidebarBotAvatar";
+import { SidebarBotAvatar, botTitleWithoutMarker } from "~/nv/bots/SidebarBotAvatar";
+import { botRowPreview, useSidebarBot } from "~/nv/bots/useSidebarBot";
 import { useThreadSelectionStore } from "../../threadSelectionStore";
 import { useNowMinute } from "../../hooks/useNowMinute";
 import { useNowSecond } from "../../hooks/useNowSecond";
@@ -802,11 +803,12 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
 
   const isUnread = hasUnseenCompletion({ ...thread, lastVisitedAt });
   const status = resolveSidebarRowStatus({ ...thread, lastVisitedAt });
-  const markedTitle = botTitleWithoutMarker(thread.title);
-  const botOverride = useUiStateStore((state) => state.sidebarBotByThreadKey[threadKey]);
-  const isBot = botOverride ?? markedTitle !== null;
-  const displayTitle = (markedTitle ?? thread.title) || gt("Bot thread");
-  const botAvatar = isBot ? <SidebarBotAvatar status={status} /> : null;
+  const {
+    isBot,
+    look: botLook,
+    displayTitle,
+    accessibleTitle,
+  } = useSidebarBot(threadKey, thread.title);
   const lastVisitedDate = lastVisitedAt === undefined ? null : parseTimestampDate(lastVisitedAt);
   const wokeAtDate = props.wokeAt === null ? null : parseTimestampDate(props.wokeAt);
   const isWoke =
@@ -882,6 +884,9 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                         }
                       : null;
   const isWokeStatus = topStatus?.icon === "woke";
+  const botPreview = isBot
+    ? botRowPreview(status, topStatus?.label, thread.source.latestVisibleMessage?.text, gt("Ready"))
+    : null;
 
   const branchMismatch = resolveLocalCheckoutBranchMismatch({
     effectiveEnvMode: thread.worktreePath === null ? "local" : "worktree",
@@ -1100,7 +1105,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     ) : null;
 
   const accessibility = resolveSidebarRowAccessibility({
-    title: isBot ? gt("Bot: {name}", { name: displayTitle }) : displayTitle,
+    title: accessibleTitle,
     statusLabel: pendingSync ? gt("Pending") : (topStatus?.label ?? null),
     projectDisplayName: props.projectDisplayName,
     isActive: props.isActive,
@@ -1377,20 +1382,21 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
           >
             {/* `contents` keeps one-line rows a single flex row. */}
             <div className={multiline ? "flex h-6 min-w-0 items-center gap-2.5" : "contents"}>
-              {botAvatar ??
-                (inFolder ? null : (
-                  <span
-                    className={cn(
-                      "flex shrink-0 items-center transition-opacity",
-                      (!props.isActive || variantAction === "unsettle") &&
-                        "opacity-40 grayscale group-focus-within/sidebar-row:opacity-100 group-focus-within/sidebar-row:grayscale-0 group-hover/sidebar-row:opacity-100 group-hover/sidebar-row:grayscale-0",
-                    )}
-                  >
-                    {props.project ? (
-                      <ProjectFavicon project={props.project} className="size-4" />
-                    ) : null}
-                  </span>
-                ))}
+              {isBot ? (
+                <SidebarBotAvatar title={displayTitle} status={status} look={botLook} compact />
+              ) : inFolder ? null : (
+                <span
+                  className={cn(
+                    "flex shrink-0 items-center transition-opacity",
+                    (!props.isActive || variantAction === "unsettle") &&
+                      "opacity-40 grayscale group-focus-within/sidebar-row:opacity-100 group-focus-within/sidebar-row:grayscale-0 group-hover/sidebar-row:opacity-100 group-hover/sidebar-row:grayscale-0",
+                  )}
+                >
+                  {props.project ? (
+                    <ProjectFavicon project={props.project} className="size-4" />
+                  ) : null}
+                </span>
+              )}
               {draftIndicator}
               {title}
               {multiline ? titleLineIcons : null}
@@ -1554,7 +1560,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
       // that have not rendered yet, so a hint off by a pixel lands it a pixel short per row above.
       className={cn(
         "list-none py-0.5 [content-visibility:auto] [contain-intrinsic-size:auto_78px]",
-        metaLineEmpty && "[contain-intrinsic-size:auto_60px]",
+        (isBot || metaLineEmpty) && "[contain-intrinsic-size:auto_60px]",
         sortable?.isDragging && "relative z-20",
       )}
     >
@@ -1584,20 +1590,28 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
         >
           <div
             className={cn(
-              "relative z-10 h-[4.875rem] px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)",
-              metaLineEmpty && "h-auto",
+              "relative z-10 px-(--sidebar-row-content-inset)",
+              isBot
+                ? "grid min-h-14 grid-cols-[2rem_minmax(0,1fr)] grid-rows-2 gap-x-2.5 py-2"
+                : cn("py-(--sidebar-content-inset)", !metaLineEmpty && "h-[4.875rem]"),
             )}
           >
-            <div className="flex h-5 min-w-0 items-center gap-1.5">
+            {isBot ? (
+              <div className="row-span-2 self-center">
+                <SidebarBotAvatar title={displayTitle} status={status} look={botLook} />
+              </div>
+            ) : null}
+            <div className={cn("flex h-5 min-w-0 items-center gap-1.5", isBot && "self-end")}>
               {draftIndicator}
-              {botAvatar ??
-                (props.project ? (
-                  <ProjectFavicon project={props.project} className="size-4 shrink-0" />
-                ) : null)}
+              {isBot ? (
+                title
+              ) : props.project ? (
+                <ProjectFavicon project={props.project} className="size-4 shrink-0" />
+              ) : null}
               {/* Left of the status slot, the pin would slide when hover swaps the
                 label for the wider row controls. */}
               {pinIndicator}
-              {props.projectDisplayName ? (
+              {isBot ? null : props.projectDisplayName ? (
                 <span
                   className={cn("min-w-0 flex-1 truncate font-normal text-secondary-label text-xs")}
                 >
@@ -1627,7 +1641,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                   >
                     {pendingSync ? (
                       <PendingSyncLabel />
-                    ) : topStatus ? (
+                    ) : topStatus && (!isBot || isWokeStatus) ? (
                       isWokeStatus ? (
                         <Tooltip>
                           <TooltipTrigger
@@ -1748,16 +1762,29 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               )}
               {props.sweepAction !== null ? dragDestination : null}
             </div>
-            <div className="mt-1 flex min-w-0 items-center gap-1.5">
-              {title}
-              {isRegeneratingTitle ? (
-                <span role="status" className="sr-only">
-                  <T>Regenerating title</T>
+            {isRegeneratingTitle ? (
+              <span role="status" className="sr-only">
+                <T>Regenerating title</T>
+              </span>
+            ) : null}
+            {isBot ? (
+              <div className="flex min-w-0 items-center gap-1.5 self-start text-xs text-secondary-label">
+                <span className="min-w-0 flex-1 truncate" dir="auto">
+                  {botPreview}
                 </span>
-              ) : null}
-              {titleLineIcons}
-            </div>
-            {metaLine}
+                {terminalStatusIcon}
+                {prBadge}
+                {issueBadge}
+              </div>
+            ) : (
+              <>
+                <div className="mt-1 flex min-w-0 items-center gap-1.5">
+                  {title}
+                  {titleLineIcons}
+                </div>
+                {metaLine}
+              </>
+            )}
           </div>
         </TooltipTrigger>
         {detailsTooltip}
@@ -1805,21 +1832,21 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
   onFileDropThreads: (threadRef: ScopedThreadRef, files: File[]) => void;
 }) {
   const messages = useMessages();
-  const gt = useGT();
   const thread =
     useThreadShell(scopeThreadRef(props.thread.environmentId, props.thread.id)) ?? props.thread;
-  const threadRef = scopeThreadRef(thread.environmentId, thread.id);
-  const threadKey = scopedThreadKey(threadRef);
-  const markedTitle = botTitleWithoutMarker(thread.title);
-  const botOverride = useUiStateStore((state) => state.sidebarBotByThreadKey[threadKey]);
-  const isBot = botOverride ?? markedTitle !== null;
-  const displayTitle = (markedTitle ?? thread.title) || gt("Bot thread");
+  const {
+    isBot,
+    look: botLook,
+    displayTitle,
+    accessibleTitle,
+  } = useSidebarBot(scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)), thread.title);
   const accessibility = resolveSidebarRowAccessibility({
-    title: isBot ? gt("Bot: {name}", { name: displayTitle }) : displayTitle,
+    title: accessibleTitle,
     statusLabel: null,
     projectDisplayName: props.projectDisplayName,
     isActive: props.isRouteActive,
   });
+  const threadRef = scopeThreadRef(thread.environmentId, thread.id);
   // Results only drag out as chat context; the row keeps its own listbox attributes.
   const { listeners: dragListeners, setNodeRef: setDragNodeRef } = useDraggable({
     id: scopedThreadKey(threadRef),
@@ -1932,7 +1959,12 @@ export const SidebarSearchResultRow = memo(function SidebarSearchResultRow(props
           }
         >
           {isBot ? (
-            <SidebarBotAvatar status={resolveSidebarRowStatus(thread)} />
+            <SidebarBotAvatar
+              title={displayTitle}
+              look={botLook}
+              status={resolveSidebarRowStatus(thread)}
+              compact
+            />
           ) : props.project ? (
             <ProjectFavicon
               project={props.project}

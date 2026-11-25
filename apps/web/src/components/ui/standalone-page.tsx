@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { APP_BASE_NAME } from "../../branding";
-import { NightshiftMark } from "../NightshiftMark";
+import { T3Wordmark } from "../T3Wordmark";
 
 export function StandalonePage({ children }: { readonly children: ReactNode }) {
   return (
@@ -25,7 +25,7 @@ export function StandalonePageHeader({
     <>
       <div className="flex items-baseline justify-between gap-3 text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <NightshiftMark className="size-4 shrink-0 text-foreground" aria-hidden />
+          <T3Wordmark className="size-4 shrink-0 text-foreground" aria-hidden />
           <span className="text-lg font-medium tracking-tight">{APP_BASE_NAME}</span>
         </span>
         {context ? <span className="text-sm">{context}</span> : null}

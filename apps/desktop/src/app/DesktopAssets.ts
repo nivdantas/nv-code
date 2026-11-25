@@ -78,13 +78,7 @@ function resolveSourceTreeIconPath(
 ): string | undefined {
   if (environment.isPackaged || ext === "icns") return undefined;
   if (environment.platform === "darwin" && ext === "png") {
-    return environment.path.join(
-      environment.rootDir,
-      "apps",
-      "web",
-      "public",
-      "nightshift-icon.png",
-    );
+    return environment.path.join(environment.rootDir, "apps", "web", "public", "nv-code-icon.png");
   }
   const brand = environment.isDevelopment ? "dev" : "prod";
   const fileNames = sourceTreeIconFileNames[brand];

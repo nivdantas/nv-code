@@ -10,7 +10,7 @@ import { dispatchCommandPalette } from "~/commandPaletteStore";
 import { useShownThreadRouteTarget } from "~/hooks/useShownThreadRouteTarget";
 import { useSidebarProjectGroups } from "~/hooks/useSidebarProjectGroups";
 import { cn } from "~/lib/utils";
-import { useScreenshotModeStore } from "~/screenshotModeStore";
+import { useScreenshotModeStore } from "./screenshotModeStore";
 import { registerCommands } from "~/shortcuts/dispatcher";
 import {
   useDelegatedUnderParent,
@@ -18,14 +18,16 @@ import {
   useTimelineVisibleTurnItems,
 } from "~/state/entities";
 import { useUiStateStore } from "~/uiStateStore";
-import { NightshiftMark } from "./NightshiftMark";
+import { useNvStore } from "../nvStore";
+import { NvCodeMark } from "../NvCodeMark";
 import {
   filterSidebarV2VisibleThreads,
   resolveSidebarRowStatus,
   type SidebarThreadStatus,
-} from "./Sidebar.logic";
-import { SidebarBotAvatar, botTitleWithoutMarker } from "./sidebar/SidebarBotAvatar";
-import { Button } from "./ui/button";
+} from "~/components/Sidebar.logic";
+import { SidebarBotAvatar, botTitleWithoutMarker } from "../bots/SidebarBotAvatar";
+import { ColorDot, profileColor } from "../profiles/SidebarColorChoice";
+import { Button } from "~/components/ui/button";
 
 const STATUS_LABELS = {
   approval: msg("Needs approval"),
@@ -92,10 +94,11 @@ function ScreenshotMode() {
   const threads = useQuietThreadShells();
   const delegatedUnderParent = useDelegatedUnderParent();
   const groups = useSidebarProjectGroups();
-  const profiles = useUiStateStore((state) => state.sidebarProfiles);
-  const activeProfileId = useUiStateStore((state) => state.sidebarActiveProfileId);
+  const profiles = useNvStore((state) => state.sidebarProfiles);
+  const activeProfileId = useNvStore((state) => state.sidebarActiveProfileId);
   const regularScope = useUiStateStore((state) => state.sidebarProjectScopeKeys);
-  const botOverrides = useUiStateStore((state) => state.sidebarBotByThreadKey);
+  const botOverrides = useNvStore((state) => state.sidebarBotByThreadKey);
+  const botSettings = useNvStore((state) => state.sidebarBotSettingsByThreadKey);
   const activeProfile = profiles.find(({ id }) => id === activeProfileId);
   const projectScope = activeProfile?.projectKeys ?? regularScope;
   const scopedProjectKeys =
@@ -162,7 +165,7 @@ function ScreenshotMode() {
       <div className="flex h-full min-h-0">
         <aside className="hidden w-56 shrink-0 flex-col gap-3 border-r border-border bg-sidebar p-3 text-sidebar-foreground sm:flex lg:w-72">
           <div className="flex h-9 items-center gap-2 px-2 text-sm font-semibold">
-            <NightshiftMark className="size-4" aria-hidden />
+            <NvCodeMark className="size-4" aria-hidden />
             {APP_BASE_NAME}
           </div>
           {profiles.length > 0 ? (
@@ -175,14 +178,15 @@ function ScreenshotMode() {
               >
                 <T>All projects</T>
               </span>
-              {profiles.slice(0, 4).map(({ id }, index) => (
+              {profiles.slice(0, 4).map((profile, index) => (
                 <span
-                  key={id}
+                  key={profile.id}
                   className={cn(
-                    "shrink-0 rounded-md px-1.5 py-1",
-                    activeProfileId === id && "bg-sidebar-row-active",
+                    "flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1",
+                    activeProfileId === profile.id && "bg-sidebar-row-active",
                   )}
                 >
+                  <ColorDot color={profileColor(profile)} />
                   {gt("Profile {number}", { number: index + 1 })}
                 </span>
               ))}
@@ -198,7 +202,7 @@ function ScreenshotMode() {
                 )}
               >
                 {isBot ? (
-                  <SidebarBotAvatar status={status} />
+                  <SidebarBotAvatar title={title} status={status} look={botSettings[key]} />
                 ) : (
                   <FolderIcon
                     aria-hidden

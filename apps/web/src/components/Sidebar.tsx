@@ -260,8 +260,14 @@ import {
 import { SidebarContent, SidebarGroup, useSidebar } from "./ui/sidebar";
 import { SidebarChromeFooter, SidebarChromeHeader } from "./sidebar/SidebarChrome";
 import { SidebarHeaderIconButton, SidebarThreadHeader } from "./sidebar/SidebarThreadHeader";
-import { SidebarProfileTabs } from "./sidebar/SidebarProfileTabs";
-import { botTitleWithoutMarker } from "./sidebar/SidebarBotAvatar";
+import { SidebarProfileTabs } from "~/nv/profiles/SidebarProfileTabs";
+import {
+  applyProfileScopeKeys,
+  profileScopeKey,
+  useActiveSidebarProfile,
+} from "~/nv/profiles/profileScope";
+import { SidebarBotDialogHost } from "~/nv/bots/SidebarBotDialog";
+import { sidebarBotMenuState } from "~/nv/bots/useSidebarBot";
 import { TooltipProvider, TooltipScrollDismissArea } from "./ui/tooltip";
 import {
   composerDraftHasUserContent,
@@ -1031,11 +1037,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   );
   const environmentMachineById = useEnvironmentMachines();
   const projectGroupsRef = useRef(projectGroups);
-  const sidebarProfiles = useUiStateStore((store) => store.sidebarProfiles);
-  const activeProfile = useUiStateStore(
-    (store) =>
-      store.sidebarProfiles.find((profile) => profile.id === store.sidebarActiveProfileId) ?? null,
-  );
+  const activeProfile = useActiveSidebarProfile();
   const persistedProjectScopeKeys = useUiStateStore((store) => store.sidebarProjectScopeKeys);
   const setPersistedProjectScopeKeys = useUiStateStore((store) => store.setSidebarProjectScopeKeys);
   const [projectScopeMenuState, dispatchProjectScopeMenu] = useReducer(
@@ -1104,18 +1106,10 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
 
   // A selection made under one scope can hold threads the next scope hides.
   // The viewport outlives the scope and does not anchor, so a new list starts at the top.
-  const resetSidebarScopeView = () => {
-    clearSelection();
-    scrollSidebarToTop(sidebarContentRef.current);
-  };
   const setProjectScopeKeys = (keys: readonly string[]) => {
-    resetSidebarScopeView();
-    if (activeProfile && keys.length > 0) {
-      useUiStateStore.getState().saveSidebarProfile({ ...activeProfile, projectKeys: keys });
-    } else {
-      if (activeProfile) useUiStateStore.getState().selectSidebarProfile(null);
-      setPersistedProjectScopeKeys(keys);
-    }
+    clearSelection();
+    if (!applyProfileScopeKeys(activeProfile, keys)) setPersistedProjectScopeKeys(keys);
+    scrollSidebarToTop(sidebarContentRef.current);
   };
   // A scope whose project is gone reads as all projects once every snapshot has
   // loaded. The stored keys are left alone, so the scope returns with its project.
@@ -1177,11 +1171,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   });
   const revealWidensScope = activeProfile === null && routeWidensScope;
   const projectScopeKeys = revealWidensScope ? [] : chosenProjectScopeKeys;
-  const projectScopeKey = activeProfile
-    ? [activeProfile.id, ...projectScopeKeys].join("\n")
-    : projectScopeKeys.length === 0
-      ? null
-      : projectScopeKeys.join("\n");
+  const projectScopeKey =
+    profileScopeKey(activeProfile, projectScopeKeys) ??
+    (projectScopeKeys.length === 0 ? null : projectScopeKeys.join("\n"));
   const toggleProjectScopeKey = (key: string) =>
     setProjectScopeKeys(
       projectScopeKeys.includes(key)
@@ -2727,8 +2719,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         const isSettled = settledThreadKeysRef.current.has(threadKey);
         const isSnoozed = snoozedThreadKeysRef.current.has(threadKey);
         const isPinned = thread.pinnedAt != null;
-        const markedInTitle = botTitleWithoutMarker(thread.title) !== null;
-        const isBot = useUiStateStore.getState().sidebarBotByThreadKey[threadKey] ?? markedInTitle;
+        const bot = sidebarBotMenuState(threadKey, thread.title);
         const snoozePresets = resolveSnoozePresets(
           new Date(),
           timestampFormat,
@@ -2772,7 +2763,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               ),
               canTurnIntoProject: canTurnThreadIntoProject(threadRef),
               canRename: !fromSearch,
-              isBot,
+              isBot: bot.isBot,
               supports: {
                 settlement: configLoaded,
                 autoSettleOptOut: supportsAutoSettleOptOut,
@@ -2900,7 +2891,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
             startThreadRename(threadRef, thread.title);
             return;
           case "toggle-bot":
-            useUiStateStore.getState().setSidebarBot(threadKey, !isBot, markedInTitle);
+          case "customize-bot":
+            bot.run(clicked.value);
             return;
           case "share-guest":
             openGuestShareDialog(threadRef);
@@ -3369,24 +3361,15 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               onClearSearch={clearThreadSearch}
             />
             <SidebarProfileTabs
-              profiles={sidebarProfiles}
-              activeProfile={activeProfile}
               projects={scopeGroups}
               currentProjectKeys={projectScopeKeys}
-              onSelect={(id) => {
-                resetSidebarScopeView();
-                useUiStateStore.getState().selectSidebarProfile(id);
-                if (id === null) setPersistedProjectScopeKeys([]);
+              onScopeChange={() => {
+                clearSelection();
+                scrollSidebarToTop(sidebarContentRef.current);
               }}
-              onSave={(profile) => {
-                resetSidebarScopeView();
-                useUiStateStore.getState().saveSidebarProfile(profile);
-              }}
-              onRemove={(id) => {
-                resetSidebarScopeView();
-                useUiStateStore.getState().removeSidebarProfile(id);
-              }}
+              onShowAll={() => setPersistedProjectScopeKeys([])}
             />
+            <SidebarBotDialogHost />
           </SidebarGroup>
         }
       >

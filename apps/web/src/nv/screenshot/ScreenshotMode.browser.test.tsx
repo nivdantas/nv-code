@@ -1,11 +1,11 @@
 import { expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 
-import appCss from "../index.css?inline";
-import { render } from "../../test/render";
+import appCss from "~/index.css?inline";
+import { render } from "../../../test/render";
 import { ScreenshotModeHost } from "./ScreenshotMode";
 
-vi.mock(import("../state/server"), async (original) => {
+vi.mock(import("../../state/server"), async (original) => {
   const { Atom } = await import("effect/reactivity");
   const { compileResolvedKeybindingsConfig } = await import("@t3tools/shared/keybindings");
   const keybindings = compileResolvedKeybindingsConfig([
