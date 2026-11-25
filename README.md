@@ -9,6 +9,17 @@ The web and Electron workspace includes four features inspired by [T3Plus](https
 - **Sidebar profiles.** Select **Add profile** above the thread list, name it, and choose its projects. Switch back with **All projects**. Profiles and bot presentation choices are saved in the local app client.
 - **Screenshot mode.** Press **Alt+Shift+D** or choose **Enter screenshot mode** from the command palette. A separate view shows example names and messages. Use **Esc**, the same shortcut, or **Exit screenshot mode** to return to your workspace.
 
+## Build a macOS installer
+
+With Vite+, Rust, and the Xcode Command Line Tools installed, run these commands from the checkout.
+
+```sh
+vp i
+vp run dist:desktop:dmg --arch arm64
+```
+
+For an Intel Mac, use `--arch x64` and install the `x86_64-apple-darwin` Rust target. Open the DMG in `release/`, drag **Nightshift Code** to Applications, and open the app with the **N3** icon. Nightshift uses its own browser profile and server data directory. Connect to an existing T3 environment if you want to see its projects and threads.
+
 ## Run from source
 
 Install [Vite+](https://viteplus.dev/guide/) and run these commands from the checkout.
