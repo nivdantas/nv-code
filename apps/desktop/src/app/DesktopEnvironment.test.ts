@@ -68,8 +68,8 @@ describe("DesktopEnvironment", () => {
       );
       const production = yield* makeEnvironment();
 
-      assert.equal(development.stateDir, "/Users/alice/.nightshift-code/dev");
-      assert.equal(production.stateDir, "/Users/alice/.nightshift-code/userdata");
+      assert.equal(development.stateDir, "/Users/alice/.nv-code/dev");
+      assert.equal(production.stateDir, "/Users/alice/.nv-code/userdata");
     }),
   );
 });

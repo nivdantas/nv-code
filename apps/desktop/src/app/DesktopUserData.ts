@@ -4,6 +4,8 @@ import * as Path from "effect/Path";
 import * as PlatformError from "effect/PlatformError";
 import * as Schema from "effect/Schema";
 
+import { NV_USER_DATA_DIR_NAME } from "../nv/nvDataDirs.ts";
+
 export class DesktopUserDataInitializationError extends Schema.TaggedError<DesktopUserDataInitializationError>()(
   "DesktopUserDataInitializationError",
   {
@@ -42,7 +44,7 @@ export const resolveUserDataPath = Effect.fn("desktop.userData.resolveUserDataPa
     if (input.platform === "darwin") {
       return path.join(
         input.appDataDirectory,
-        input.isDevelopment ? "nightshift-code-dev" : "nightshift-code",
+        input.isDevelopment ? `${NV_USER_DATA_DIR_NAME}-dev` : NV_USER_DATA_DIR_NAME,
       );
     }
     const names = input.isDevelopment

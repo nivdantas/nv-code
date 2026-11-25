@@ -64,11 +64,9 @@ import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
 const LINUX_ICON_SIZES = [16, 22, 24, 32, 48, 64, 128, 256, 512] as const;
 const DESKTOP_APP_ID = "com.t3tools.t3code";
-const NV_CODE_MAC_APP_ID = "com.nivdantas.nightshift-code";
+const NV_CODE_MAC_APP_ID = "com.nivdantas.nv-code";
 const NV_CODE_MAC_APP_NAME = "NV-CODE";
 const NV_CODE_ICON = "apps/web/public/nv-code-icon.png";
-// Electron uses the startup package name for Safe Storage before app.setName runs.
-const MAC_KEYCHAIN_APP_NAME = "Nightshift Code";
 const APPLE_TEAM_ID_PATTERN = /^[A-Z0-9]{10}$/u;
 
 const BuildPlatform = Schema.Literals(["mac", "linux", "win"]);
@@ -3961,7 +3959,8 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
       : undefined;
   const stagePackageJson: StagePackageJson = {
     ...(options.platform === "mac"
-      ? { name: "nightshift-code", productName: MAC_KEYCHAIN_APP_NAME }
+      ? // Electron names its Safe Storage keychain item after this before app.setName runs.
+        { name: "nv-code", productName: NV_CODE_MAC_APP_NAME }
       : { name: "t3code" }),
     version: appVersion,
     buildVersion: appVersion,

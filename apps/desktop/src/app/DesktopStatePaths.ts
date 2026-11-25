@@ -1,5 +1,7 @@
 import * as Option from "effect/Option";
 
+import { NV_STATE_DIR_NAME } from "../nv/nvDataDirs.ts";
+
 export type JoinPath = (first: string, ...segments: string[]) => string;
 
 function normalizeConfiguredBaseDir(t3Home: Option.Option<string>): Option.Option<string> {
@@ -16,7 +18,7 @@ export function resolveDesktopBaseDir(input: {
   readonly t3Home: Option.Option<string>;
 }): string {
   return Option.getOrElse(normalizeConfiguredBaseDir(input.t3Home), () =>
-    input.joinPath(input.homeDirectory, ".nightshift-code"),
+    input.joinPath(input.homeDirectory, NV_STATE_DIR_NAME),
   );
 }
 

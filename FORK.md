@@ -19,7 +19,7 @@ NV-CODE is T3 Code Nightly with bot rows, sidebar profiles, usage widgets, scree
 
 Web hooks, each a few lines: `Sidebar.tsx` (profile scope, bot menu, tabs, dialog host), `SidebarThreadRow.tsx` (bot row layout), `threadActionMenu.logic.ts`, `useComposerSend.ts` (brief), `ChatView.tsx` (glow, widgets), `CommandPalette.tsx`, `appInit.tsx`, `routes/__root.tsx`, `index.css`, `branding.ts`, `vite.config.ts`, `T3Wordmark.tsx` (re-exports the NV mark), `SidebarChrome.tsx`, `ui/standalone-page.tsx`, the `screenshotMode.toggle` keybinding in `packages/contracts`, `packages/shared` and `KeybindingsSettings.logic.ts`, and one profile test appended to `Sidebar.browser.test.tsx`.
 
-Branding outside the web app: `apps/web/index.html`, `manifest.webmanifest`, `apps/desktop/src/app/Desktop{Assets,Environment,StatePaths,UserData}.ts`, the DMG backgrounds and `scripts/build-desktop-artifact.ts`. The `nightshift-code` app id, state folder and keychain name are kept on purpose, so existing installs keep their data.
+Branding outside the web app: `apps/web/index.html`, `manifest.webmanifest`, `apps/desktop/src/app/Desktop{Assets,Environment,StatePaths,UserData}.ts`, the DMG backgrounds and `scripts/build-desktop-artifact.ts`. `apps/desktop/src/nv/nvDataDirs.ts` names the data folders and moves pre-rename Nightshift folders on first launch.
 
 ## Rebasing on upstream
 

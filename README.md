@@ -28,7 +28,7 @@ vp i
 vp run dist:desktop:dmg --arch arm64
 ```
 
-For an Intel Mac, use `--arch x64` and install the `x86_64-apple-darwin` Rust target. The DMG is written to `release/`. NV-CODE keeps the data directory and browser profile of earlier Nightshift builds, so an update keeps your settings. To see projects and threads on another T3 environment, connect to that environment.
+For an Intel Mac, use `--arch x64` and install the `x86_64-apple-darwin` Rust target. The DMG is written to `release/`. The first launch moves data from earlier Nightshift builds to the NV-CODE folders, so an update keeps your settings. To see projects and threads on another T3 environment, connect to that environment.
 
 ## Run from source
 
@@ -36,10 +36,10 @@ Install [Vite+](https://viteplus.dev/guide/) and run these commands from the che
 
 ```sh
 vp i
-vp run dev --home-dir .t3/nightshift-dev --no-seed
+vp run dev --home-dir .t3/nv-code-dev --no-seed
 ```
 
-Open the local pairing URL the development server prints. For the Electron client, use `vp run dev:desktop --home-dir .t3/nightshift-dev --no-seed`. See the [development guide](docs/operations/00_development.md) for provider setup and test commands.
+Open the local pairing URL the development server prints. For the Electron client, use `vp run dev:desktop --home-dir .t3/nv-code-dev --no-seed`. See the [development guide](docs/operations/00_development.md) for provider setup and test commands.
 
 ## Staying close to upstream
 
