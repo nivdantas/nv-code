@@ -65,6 +65,7 @@ import { ChildProcess, ChildProcessSpawner } from "effect/process";
 const LINUX_ICON_SIZES = [16, 22, 24, 32, 48, 64, 128, 256, 512] as const;
 const DESKTOP_APP_ID = "com.t3tools.t3code";
 const NIGHTSHIFT_MAC_APP_ID = "com.nivdantas.nightshift-code";
+const NIGHTSHIFT_MAC_APP_NAME = "Nightshift Code";
 const NIGHTSHIFT_ICON = "apps/web/public/nightshift-icon.png";
 const APPLE_TEAM_ID_PATTERN = /^[A-Z0-9]{10}$/u;
 
@@ -966,6 +967,7 @@ interface ResolvedBuildOptions {
 
 interface StagePackageJson {
   readonly name: string;
+  readonly productName?: string;
   readonly version: string;
   readonly buildVersion: string;
   readonly t3codeCommitHash: string;
@@ -2824,7 +2826,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   const buildConfig: Record<string, unknown> = {
     afterPack: (yield* Path.Path).join(yield* RepoRoot, "scripts/prepare-server-compile-cache.cjs"),
     appId: platform === "mac" ? NIGHTSHIFT_MAC_APP_ID : DESKTOP_APP_ID,
-    productName: platform === "mac" ? "Nightshift Code" : resolveDesktopProductName(version),
+    productName: platform === "mac" ? NIGHTSHIFT_MAC_APP_NAME : resolveDesktopProductName(version),
     artifactName:
       platform === "mac"
         ? "Nightshift-Code-${version}-${arch}.${ext}"
@@ -2936,7 +2938,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   if (platform === "mac" && target === "dmg") {
     buildConfig.dmg = {
       // Finder caches DMG backgrounds by volume name; give each installer its own.
-      title: `Nightshift Code ${version} Installer`,
+      title: `${NIGHTSHIFT_MAC_APP_NAME} ${version} Installer`,
       background: `dmg/dmg-background-${updateChannel}.png`,
       window: {
         width: 640,
@@ -3965,7 +3967,10 @@ const buildDesktopArtifactUnlocked = Effect.fn("buildDesktopArtifactUnlocked")(f
       ? path.join(stageAppDir, WINDOWS_SERVER_RESOURCE_SOURCE_DIR, WINDOWS_SERVER_ASAR_RESOURCE)
       : undefined;
   const stagePackageJson: StagePackageJson = {
-    name: "t3code",
+    // Electron reads this manifest before the desktop main process sets its display name.
+    ...(options.platform === "mac"
+      ? { name: "nightshift-code", productName: NIGHTSHIFT_MAC_APP_NAME }
+      : { name: "t3code" }),
     version: appVersion,
     buildVersion: appVersion,
     t3codeCommitHash: commitHash,
