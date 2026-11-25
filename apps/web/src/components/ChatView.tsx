@@ -3787,6 +3787,9 @@ export default function ChatView(props: ChatViewProps) {
                   : "pointer-events-none absolute inset-x-0 bottom-0 z-20 pt-1.5 sm:pt-2"
               }
             >
+              {isDraftHeroState && !embedded ? (
+                <div className="nightshift-draft-glow" aria-hidden />
+              ) : null}
               <div ref={draftHeroTransitionGroupRef} className="chat-composer-lane w-full">
                 <div
                   data-chat-composer-stack="true"
@@ -3821,7 +3824,10 @@ export default function ChatView(props: ChatViewProps) {
                   >
                     <ChildThreadApprovals threadRef={activeThreadRef} />
                     <div className="relative">
-                      <ComposerSurface.Shell contextRow={showComposerContextStrip}>
+                      <ComposerSurface.Shell
+                        contextRow={showComposerContextStrip}
+                        data-nightshift-draft={isDraftHeroState && !embedded ? "" : undefined}
+                      >
                         <ComposerSurface.Host
                           inert={queuedRunEdit.isSaving}
                           aria-busy={queuedRunEdit.isSaving}

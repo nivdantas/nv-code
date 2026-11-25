@@ -2713,3 +2713,36 @@ code {
 .messages-timeline-scroll:focus-visible {
   outline: none;
 }
+
+.nightshift-draft-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: url("/nightshift-grain.png") center 40% / min(100%, 74rem) auto no-repeat;
+  image-rendering: pixelated;
+  opacity: 0.24;
+
+  @variant dark {
+    opacity: 0.94;
+  }
+}
+
+[data-nightshift-draft] {
+  @variant dark {
+    --glass-opacity: 62%;
+    --glass-blur: 0px;
+  }
+}
+
+.nightshift-usage-card {
+  background-image: radial-gradient(
+    ellipse at top left,
+    color-mix(in oklch, var(--primary) 12%, transparent),
+    transparent 78%
+  );
+}
+
+.nightshift-grain-fill {
+  background-image: repeating-conic-gradient(rgb(0 0 0 / 48%) 0% 25%, transparent 0% 50%);
+  background-size: 4px 4px;
+}

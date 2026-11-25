@@ -59,10 +59,10 @@ function WeeklyLimit({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={pool.remainingPercent}
-        className="h-1.5 overflow-hidden rounded-full bg-muted"
+        className="h-3 overflow-hidden rounded-sm bg-muted"
       >
         <div
-          className="h-full rounded-full"
+          className="nightshift-grain-fill h-full"
           style={{ width: `${pool.remainingPercent}%`, backgroundColor: color }}
         />
       </div>
@@ -75,27 +75,25 @@ function WeeklyLimitsWidget() {
   const presentations = useAtomValue(environmentPresentations.presentationsWithProvidersAtom);
   const now = Date.parse(useNowMinute());
   const pools = collectLimitPools(collectLimitAccounts(presentations), now);
-  const weekly = PROVIDERS.flatMap(({ label, color, driverKind }) => {
+  return PROVIDERS.map(({ label, color, driverKind }) => {
     const pool = pools.find((candidate) => candidate.driver === driverKind);
     const window = pool?.windows.find((candidate) => candidate.kind === "weekly");
-    return window ? [{ label, color, window }] : [];
+    return (
+      <section
+        key={driverKind}
+        className="nightshift-usage-card flex min-w-0 flex-col gap-2 rounded-xl border border-border/75 bg-card px-3 py-2.5"
+      >
+        <h3 className="text-xs font-semibold">
+          <T>Weekly limits</T>
+        </h3>
+        {window ? (
+          <WeeklyLimit name={label} color={color} pool={window} now={now} />
+        ) : (
+          <p className="text-xs text-muted-foreground">{label}</p>
+        )}
+      </section>
+    );
   });
-  return (
-    <section className="flex min-w-0 flex-col gap-2.5 rounded-xl border border-border/75 bg-card px-3 py-2.5">
-      <h3 className="text-xs font-semibold">
-        <T>Weekly limits</T>
-      </h3>
-      {weekly.length > 0 ? (
-        weekly.map(({ label, color, window }) => (
-          <WeeklyLimit key={label} name={label} color={color} pool={window} now={now} />
-        ))
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          <T>No Codex or Claude weekly limits reported.</T>
-        </p>
-      )}
-    </section>
-  );
 }
 
 function UsageActivityWidget() {
@@ -114,61 +112,83 @@ function UsageActivityWidget() {
     });
 
   return (
-    <section className="flex min-w-0 flex-col gap-2 rounded-xl border border-border/75 bg-card px-3 py-2.5">
-      <h3 className="text-xs font-semibold">
-        <T>Token activity</T>
-      </h3>
-      {merged.records === 0 ? (
-        <p className="text-xs text-muted-foreground">
-          {isPending ? <T>Loading usage…</T> : <T>No usage reported in the last 28 days.</T>}
-        </p>
-      ) : (
-        <>
-          <div className="flex flex-wrap items-baseline gap-x-2 text-xs text-muted-foreground tabular-nums">
-            <strong className="text-base font-semibold text-foreground">
-              {formatTokens(merged.totalTokens)}
-            </strong>
-            <T>tokens · 28 days</T>
-            {costKnown ? (
-              <span className="ml-auto">{formatUsd(merged.costUsd, locale)}</span>
+    <>
+      <section className="nightshift-usage-card flex min-w-0 flex-col gap-2 rounded-xl border border-border/75 bg-card px-3 py-2.5">
+        <h3 className="text-xs font-semibold">
+          <T>Token activity</T>
+        </h3>
+        {merged.records === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            {isPending ? <T>Loading usage…</T> : <T>No usage reported in the last 28 days.</T>}
+          </p>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-baseline gap-x-2 text-xs text-muted-foreground tabular-nums">
+              <strong className="text-base font-semibold text-foreground">
+                {formatTokens(merged.totalTokens)}
+              </strong>
+              <T>tokens · 28 days</T>
+              {costKnown ? (
+                <span className="ml-auto">{formatUsd(merged.costUsd, locale)}</span>
+              ) : null}
+            </div>
+            <div
+              className="grid grid-cols-14 gap-1"
+              aria-label={gt("Daily token activity")}
+              role="img"
+            >
+              {days.map((day) => {
+                const tokens = daily.get(day)?.totalTokens ?? 0;
+                return (
+                  <Tooltip key={day}>
+                    <TooltipTrigger
+                      render={
+                        <span
+                          className="nightshift-grain-fill aspect-square min-w-0 rounded-xs bg-muted"
+                          style={
+                            tokens > 0
+                              ? {
+                                  backgroundColor: `color-mix(in oklab, var(--primary) ${20 + 80 * Math.sqrt(tokens / peak)}%, var(--muted))`,
+                                }
+                              : undefined
+                          }
+                        />
+                      }
+                    />
+                    <TooltipPopup>{dayLabel(day)}</TooltipPopup>
+                  </Tooltip>
+                );
+              })}
+            </div>
+            {isPartial ? (
+              <p className="text-2xs text-muted-foreground">
+                <T>Partial usage data</T>
+              </p>
             ) : null}
-          </div>
-          <div
-            className="grid grid-cols-14 gap-1"
-            aria-label={gt("Daily token activity")}
-            role="img"
-          >
-            {days.map((day) => {
-              const tokens = daily.get(day)?.totalTokens ?? 0;
-              return (
-                <Tooltip key={day}>
-                  <TooltipTrigger
-                    render={
-                      <span
-                        className="aspect-square min-w-0 rounded-xs bg-muted"
-                        style={
-                          tokens > 0
-                            ? {
-                                backgroundColor: `color-mix(in oklab, var(--primary) ${20 + 80 * Math.sqrt(tokens / peak)}%, var(--muted))`,
-                              }
-                            : undefined
-                        }
-                      />
-                    }
-                  />
-                  <TooltipPopup>{dayLabel(day)}</TooltipPopup>
-                </Tooltip>
-              );
-            })}
-          </div>
-          {isPartial ? (
-            <p className="text-2xs text-muted-foreground">
-              <T>Partial usage data</T>
-            </p>
-          ) : null}
-        </>
-      )}
-    </section>
+          </>
+        )}
+      </section>
+      <section className="nightshift-usage-card flex min-w-0 flex-col gap-2 rounded-xl border border-border/75 bg-card px-3 py-2.5">
+        <h3 className="text-xs font-semibold">{gt("Daily token activity")}</h3>
+        <div
+          className="flex h-12 items-end gap-0.5 border-b border-border"
+          role="img"
+          aria-label={gt("Daily token activity")}
+        >
+          {days.map((day) => (
+            <div
+              key={day}
+              className="nightshift-grain-fill min-w-0 flex-1 rounded-t-xs bg-primary"
+              style={{ height: `${100 * ((daily.get(day)?.totalTokens ?? 0) / peak)}%` }}
+            />
+          ))}
+        </div>
+        <div className="flex justify-between text-2xs text-muted-foreground">
+          <span>{formatDayShort(window.sinceDay, locale)}</span>
+          <span>{formatDayShort(window.untilDay, locale)}</span>
+        </div>
+      </section>
+    </>
   );
 }
 
