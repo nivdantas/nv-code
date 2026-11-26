@@ -27,6 +27,7 @@ import {
   GROVE_THEME,
   IRIS_THEME,
   OCEAN_THEME,
+  NV_BUILT_IN_THEME_DEFINITIONS,
 } from "../../themePalette";
 import {
   AlertDialog,
@@ -56,6 +57,7 @@ import { ThemeWireframe } from "./ThemeWireframe";
 import { T, useGT } from "gt-react";
 
 const MAINTAINER_THEMES: ReadonlyArray<ThemeDefinition> = [
+  ...NV_BUILT_IN_THEME_DEFINITIONS,
   T3_CHAT_THEME,
   GROVE_THEME,
   OCEAN_THEME,

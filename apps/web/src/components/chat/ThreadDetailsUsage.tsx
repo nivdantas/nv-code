@@ -333,13 +333,20 @@ function UsageRow({
           opensUsage ? <Link to="/usage" {...rowProps} /> : <div tabIndex={0} {...rowProps} />
         }
       >
-        <span className="max-w-28 truncate text-muted-foreground group-hover:text-foreground">
+        <span
+          data-usage-label
+          className="max-w-28 truncate text-muted-foreground group-hover:text-foreground"
+        >
           {label}
         </span>
         {fill !== null ? (
-          <span className="relative h-[3px] rounded-full bg-muted-foreground/30 dark:bg-muted-foreground/20">
+          <span
+            data-usage-track
+            className="relative h-[3px] rounded-full bg-muted-foreground/30 dark:bg-muted-foreground/20"
+          >
             {fill > 0 ? (
               <span
+                data-usage-fill={tone ?? "normal"}
                 className={cn(
                   "absolute inset-y-0 left-0 rounded-full",
                   tone === "error"
@@ -363,6 +370,7 @@ function UsageRow({
           </span>
         ) : null}
         <span
+          data-usage-value={tone ?? "normal"}
           className={cn(
             // Text-only rows span the bar column so they never widen the shared value column.
             "text-end font-medium tabular-nums",

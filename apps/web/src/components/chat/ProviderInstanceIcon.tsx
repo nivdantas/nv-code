@@ -129,6 +129,7 @@ export const ProviderInstanceIcon = memo(function ProviderInstanceIcon(props: {
       )}
       style={accentStyle}
       data-provider-accent-color={accentColor}
+      data-provider-driver={props.driverKind}
     >
       {isAcpRegistry ? (
         <AcpRegistryAgentIcon
