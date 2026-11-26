@@ -12,8 +12,6 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 // @effect-diagnostics-next-line nodeBuiltinImport:off - Version output must flush before Electron exits, without acquiring the runtime.
 import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
-// @effect-diagnostics-next-line nodeBuiltinImport:off - Moves pre-rename data synchronously, before the runtime opens it.
-import * as NodePath from "node:path";
 import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -83,7 +81,7 @@ import * as DesktopWindow from "./window/DesktopWindow.ts";
 import * as DesktopWslBackend from "./wsl/DesktopWslBackend.ts";
 import * as DesktopWslEnvironment from "./wsl/DesktopWslEnvironment.ts";
 import * as DesktopWslServerTree from "./wsl/DesktopWslServerTree.ts";
-import { moveLegacyNightshiftData } from "./nv/nvDataDirs.ts";
+import { runNvFirstLaunch } from "./nv/nvFirstLaunch.ts";
 
 if (process.argv.includes("--version")) {
   try {
@@ -94,13 +92,8 @@ if (process.argv.includes("--version")) {
   Electron.app.exit(0);
 }
 
-moveLegacyNightshiftData({
-  homeDirectory: NodeOS.homedir(),
-  appDataDirectory: Electron.app.getPath("appData"),
-  t3Home: process.env.T3CODE_HOME,
-  joinPath: NodePath.join,
-  fs: NodeFS,
-});
+// NV-CODE: move pre-rename data and Keychain key before anything opens them.
+runNvFirstLaunch(Electron.app);
 
 const layerDesktopEnvironment = Layer.unwrap(
   Effect.gen(function* () {
