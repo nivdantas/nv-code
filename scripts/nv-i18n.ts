@@ -19,12 +19,13 @@ for (const [locale, translations] of Object.entries(overlay)) {
   const catalog: Record<string, unknown> = readJson(file);
   let applied = 0;
   for (const [key, source] of Object.entries(english)) {
-    const translation = typeof source === "string" ? translations[source] : undefined;
     // Only fill strings still in English, so an upstream translation always wins.
-    if (translation === undefined || catalog[key] !== source) continue;
+    if (typeof source !== "string" || catalog[key] !== source) continue;
+    const translation = Object.hasOwn(translations, source) ? translations[source] : undefined;
+    if (translation === undefined || translation === source) continue;
     catalog[key] = translation;
     applied++;
   }
-  NodeFS.writeFileSync(file, `${JSON.stringify(catalog, null, 2)}\n`);
+  if (applied > 0) NodeFS.writeFileSync(file, `${JSON.stringify(catalog, null, 2)}\n`);
   console.log(`${locale}: ${applied} NV-CODE translations applied`);
 }
