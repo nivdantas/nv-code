@@ -73,7 +73,8 @@ function WeeklyLimit({
 
 function WeeklyLimitsWidget() {
   const presentations = useAtomValue(environmentPresentations.presentationsWithProvidersAtom);
-  const now = Date.parse(useNowMinute());
+  // useNowMinute is a UTC "YYYY-MM-DDTHH:mm" with no zone; without the Z it parses as local time.
+  const now = Date.parse(`${useNowMinute()}:00Z`);
   const pools = collectLimitPools(collectLimitAccounts(presentations), now);
   return PROVIDERS.map(({ label, color, driverKind }) => {
     const pool = pools.find((candidate) => candidate.driver === driverKind);
