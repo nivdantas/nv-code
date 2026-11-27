@@ -117,6 +117,12 @@ it.live("installs executable scripts, repairs them, and removes managed copies o
     }).pipe(Effect.provide(layer));
     assert.isTrue(installed.enabled);
     assert.isTrue(installed.skills.every(({ state }) => state === "current"));
+    assert.deepEqual(
+      installed.skills.map(({ provider }) => provider),
+      ["Codex / Pi / Grok"],
+    );
+    assert.isFalse(yield* fs.exists(path.join(home, ".kiro")));
+    assert.isFalse(yield* fs.exists(path.join(home, ".claude")));
     assert.equal((yield* fs.stat(launcher)).mode & 0o777, 0o755);
     assert.equal((yield* fs.stat(script)).mode & 0o777, 0o755);
 

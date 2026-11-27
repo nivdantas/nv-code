@@ -95,8 +95,9 @@ export const CLIENT_GUARDED_RPC_SCOPES = {
   [WS_METHODS.workflowsDeleteDefinition]: AuthTerminalOperateScope,
   // Force stop kills agent processes, as Stop on a terminal does.
   [ORCHESTRATION_V2_WS_METHODS.forceStopThread]: AuthOrchestrationOperateScope,
-  // A guest link hands thread access to someone outside, like a pairing link.
+  // Installs or removes agent skills in the server host's home directory.
   [WS_METHODS.nvOpSessionSetEnabled]: AuthAccessWriteScope,
+  // A guest link hands thread access to someone outside, like a pairing link.
   [WS_METHODS.guestShareCreate]: AuthAccessWriteScope,
   [WS_METHODS.peerLinksLink]: AuthAccessWriteScope,
   [WS_METHODS.peerLinksUnlink]: AuthAccessWriteScope,

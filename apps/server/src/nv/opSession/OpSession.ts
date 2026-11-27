@@ -55,15 +55,30 @@ const make = Effect.gen(function* () {
   const stateFile = path.join(home, ".op-session", ".nv-code-enabled");
   const configHome = environment.XDG_CONFIG_HOME;
   const xdg = configHome && path.isAbsolute(configHome) ? configHome : path.join(home, ".config");
-  const targets = [
-    { provider: "Claude Code", root: path.join(home, ".claude", "skills") },
-    { provider: "Codex / Pi / Grok", root: path.join(home, ".agents", "skills") },
-    { provider: "Cursor", root: path.join(home, ".cursor", "skills") },
-    { provider: "OpenCode / fx", root: path.join(xdg, "opencode", "skills") },
-    { provider: "Antigravity", root: path.join(home, ".gemini", "config", "skills") },
-    { provider: "Kiro", root: path.join(home, ".kiro", "skills") },
-    { provider: "Muse Code", root: path.join(xdg, "muse", "skills") },
-  ].map(({ provider, root }) => ({ provider, destination: path.join(root, "op-session") }));
+  // `home` is the provider's own config folder; we only write where it already exists,
+  // so enabling never creates folders for providers this host doesn't have.
+  const allTargets = [
+    { provider: "Claude Code", home: path.join(home, ".claude") },
+    { provider: "Codex / Pi / Grok", home: null, root: path.join(home, ".agents", "skills") },
+    { provider: "Cursor", home: path.join(home, ".cursor") },
+    { provider: "OpenCode / fx", home: path.join(xdg, "opencode") },
+    {
+      provider: "Antigravity",
+      home: path.join(home, ".gemini"),
+      root: path.join(home, ".gemini", "config", "skills"),
+    },
+    { provider: "Kiro", home: path.join(home, ".kiro") },
+    { provider: "Muse Code", home: path.join(xdg, "muse") },
+  ].map(({ provider, home: providerHome, root }) => ({
+    provider,
+    providerHome,
+    destination: path.join(root ?? path.join(providerHome!, "skills"), "op-session"),
+  }));
+  const presentTargets = Effect.filter(allTargets, ({ providerHome }) =>
+    providerHome === null
+      ? Effect.succeed(true)
+      : fs.exists(providerHome).pipe(Effect.orElseSucceed(() => false)),
+  );
   const pathDirs = (environment.PATH ?? "").split(":").filter(path.isAbsolute);
 
   const ifPresent = <A>(effect: Effect.Effect<A, PlatformError.PlatformError>) =>
@@ -215,7 +230,7 @@ const make = Effect.gen(function* () {
 
   const readInstallations = Effect.fn("OpSession.readInstallations")(function* () {
     const skills = yield* Effect.forEach(
-      targets,
+      yield* presentTargets,
       ({ provider, destination }) =>
         Effect.map(skillState(destination), (state) => ({ provider, state })),
       { concurrency: 4 },
@@ -289,7 +304,7 @@ const make = Effect.gen(function* () {
   const setEnabled = Effect.fn("OpSession.setEnabled")(
     function* (enabled: boolean) {
       if (!supported) return yield* new OpSessionHostError({ reason: "unsupported" });
-      for (const { destination } of targets) {
+      for (const { destination } of yield* presentTargets) {
         const state = yield* skillState(destination);
         if (enabled && (state === "missing" || state === "outdated")) {
           yield* install(destination, state);
