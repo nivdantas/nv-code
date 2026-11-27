@@ -2,28 +2,28 @@ import { useGT } from "gt-react";
 
 import { cn } from "~/lib/utils";
 import type { SidebarProfile } from "../nvStore";
-import { BOT_COLOR_NAMES, BOT_COLORS, type BotColor } from "../bots/botArt";
+import { SIDEBAR_COLOR_NAMES, SIDEBAR_COLORS, type SidebarColor } from "./sidebarColors";
 
-const PROFILE_COLORS = BOT_COLOR_NAMES.filter((color) => color !== "gray");
+const PROFILE_COLORS = SIDEBAR_COLOR_NAMES.filter((color) => color !== "gray");
 
-export function profileColor(profile: SidebarProfile): BotColor {
+export function profileColor(profile: SidebarProfile): SidebarColor {
   if (profile.color) return profile.color;
   let hash = 2166136261;
   for (const ch of profile.id) hash = Math.imul(hash ^ ch.charCodeAt(0), 16777619);
   return PROFILE_COLORS[(hash >>> 0) % PROFILE_COLORS.length]!;
 }
 
-export function ColorDot({ color, className }: { color: BotColor; className?: string }) {
+export function ColorDot({ color, className }: { color: SidebarColor; className?: string }) {
   return (
     <span
       aria-hidden
       className={cn("inline-block size-1.5 shrink-0 rounded-full", className)}
-      style={{ backgroundColor: BOT_COLORS[color][1] }}
+      style={{ backgroundColor: SIDEBAR_COLORS[color][1] }}
     />
   );
 }
 
-function useColorLabels(): Record<BotColor, string> {
+function useColorLabels(): Record<SidebarColor, string> {
   const gt = useGT();
   return {
     blue: gt("Blue"),
@@ -45,8 +45,8 @@ export function SidebarColorChoice({
   disabled,
 }: {
   legend: string;
-  value: BotColor;
-  onChange: (color: BotColor) => void;
+  value: SidebarColor;
+  onChange: (color: SidebarColor) => void;
   disabled?: boolean;
 }) {
   const labels = useColorLabels();
@@ -54,7 +54,7 @@ export function SidebarColorChoice({
     <fieldset disabled={disabled} className="min-w-0 disabled:opacity-50">
       <legend className="mb-1.5 text-sm font-medium">{legend}</legend>
       <div role="radiogroup" aria-label={legend} className="flex flex-wrap gap-1.5">
-        {BOT_COLOR_NAMES.map((color) => (
+        {SIDEBAR_COLOR_NAMES.map((color) => (
           <button
             key={color}
             type="button"
@@ -66,7 +66,7 @@ export function SidebarColorChoice({
               "size-6 rounded-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset",
               value === color && "ring-2 ring-foreground ring-inset",
             )}
-            style={{ backgroundColor: BOT_COLORS[color][1] }}
+            style={{ backgroundColor: SIDEBAR_COLORS[color][1] }}
           />
         ))}
       </div>

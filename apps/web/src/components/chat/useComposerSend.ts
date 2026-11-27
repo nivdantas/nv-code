@@ -5,7 +5,6 @@ import { m } from "~/i18n/messages";
 import { isClearComposerCommand, parseSideChatCommand } from "@t3tools/shared/composerTrigger";
 import { readWorktreeBaseBranch } from "../../worktreeRepositoryChoiceStore";
 import { armFreshSession, disarmFreshSession, readFreshSessionArm } from "./freshSessionArms";
-import { markBotBriefSent, pendingBotBrief, withBotBrief } from "~/nv/bots/botBrief";
 import {
   mergeDirectPreviewAnnotation,
   resolveBackgroundDraftWorkspaceOptions,
@@ -1579,8 +1578,6 @@ export function useComposerSend(input: ComposerSendInput) {
           )
         : null;
       if (backgroundThreadRef) beginBackgroundDraftSubmissionByRef(backgroundThreadRef);
-      const botThreadKey = scopedThreadKey(scopeThreadRef(environmentId, threadIdForSend));
-      const botBrief = pendingBotBrief(botThreadKey, activeThread.title);
       const startPromise = startThreadTurn({
         environmentId,
         input: {
@@ -1590,7 +1587,7 @@ export function useComposerSend(input: ComposerSendInput) {
             role: "user",
             attachments: turnAttachmentsResult.value,
             ...withMessageContext({
-              text: botBrief ? withBotBrief(botBrief, outgoingMessageText) : outgoingMessageText,
+              text: outgoingMessageText,
               context: buildOutgoingMessageContext(
                 boundAttachmentIds(turnAttachmentsResult.value, composerAttachmentsSnapshot),
               ),
@@ -1634,7 +1631,6 @@ export function useComposerSend(input: ComposerSendInput) {
         failure = startResult;
       } else {
         turnStartSucceeded = true;
-        if (botBrief) markBotBriefSent(botThreadKey);
         if (checkoutPullRequestUrl) {
           linkCheckoutPullRequest(
             scopeThreadRef(environmentId, threadIdForSend),

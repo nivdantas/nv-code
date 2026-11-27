@@ -1,7 +1,7 @@
 import { scopeThreadRef, scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { resolveThreadActivityTimestamp } from "@t3tools/client-runtime/state/thread-sort";
 import { msg, T, useGT, useMessages } from "gt-react";
-import { CameraIcon, FolderIcon, MessageSquareIcon } from "lucide-react";
+import { BotIcon, CameraIcon, FolderIcon, MessageSquareIcon } from "lucide-react";
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 
@@ -25,7 +25,6 @@ import {
   resolveSidebarRowStatus,
   type SidebarThreadStatus,
 } from "~/components/Sidebar.logic";
-import { SidebarBotAvatar, botTitleWithoutMarker } from "../bots/SidebarBotAvatar";
 import { ColorDot, profileColor } from "../profiles/SidebarColorChoice";
 import { Button } from "~/components/ui/button";
 
@@ -97,8 +96,6 @@ function ScreenshotMode() {
   const profiles = useNvStore((state) => state.sidebarProfiles);
   const activeProfileId = useNvStore((state) => state.sidebarActiveProfileId);
   const regularScope = useUiStateStore((state) => state.sidebarProjectScopeKeys);
-  const botOverrides = useNvStore((state) => state.sidebarBotByThreadKey);
-  const botSettings = useNvStore((state) => state.sidebarBotSettingsByThreadKey);
   const activeProfile = profiles.find(({ id }) => id === activeProfileId);
   const projectScope = activeProfile?.projectKeys ?? regularScope;
   const scopedProjectKeys =
@@ -127,7 +124,7 @@ function ScreenshotMode() {
     .slice(0, 10)
     .map((thread, index) => {
       const threadKey = scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id));
-      const isBot = botOverrides[threadKey] ?? botTitleWithoutMarker(thread.title) !== null;
+      const isBot = thread.botConfig != null;
       const projectNumber = projectNumbers.get(`${thread.environmentId}:${thread.projectId}`);
       return {
         key: threadKey,
@@ -202,7 +199,7 @@ function ScreenshotMode() {
                 )}
               >
                 {isBot ? (
-                  <SidebarBotAvatar title={title} status={status} look={botSettings[key]} />
+                  <BotIcon aria-hidden className="size-4 shrink-0 text-sidebar-muted-foreground" />
                 ) : (
                   <FolderIcon
                     aria-hidden

@@ -3,7 +3,6 @@ import type { SnoozePreset } from "@t3tools/client-runtime/state/thread-settled"
 import { msg } from "gt-react";
 
 import { m, type MessageResolver } from "../i18n/messages";
-import { type BotMenuId, botMenuItems } from "../nv/bots/botMenu";
 
 export type ThreadActionMenuId =
   | "find"
@@ -22,7 +21,6 @@ export type ThreadActionMenuId =
   | `snooze:${string}`
   | "unsnooze"
   | "rename"
-  | BotMenuId
   | "regenerate-title"
   | "mark-unread"
   | "share-guest"
@@ -105,7 +103,6 @@ export interface ThreadActionMenuState {
   readonly canFind?: boolean;
   /** False where no inline title editor is rendered, such as sidebar search results. */
   readonly canRename?: boolean;
-  readonly isBot?: boolean;
   readonly branch: string | null;
   readonly projectFilter: {
     readonly label: string;
@@ -150,8 +147,6 @@ export function threadActionRequiresOperate(action: ThreadActionMenuId): boolean
     "new-thread-on-branch",
     "project-settings",
     "mark-unread",
-    "toggle-bot",
-    "customize-bot",
     "share-guest",
     "copy",
     "copy-path",
@@ -247,7 +242,6 @@ export function buildThreadActionMenuItems(
       disabled: state.canRename === false,
       separatorBefore: true,
     },
-    ...botMenuItems(state.isBot, resolve),
     ...(state.supports.titleRegeneration
       ? [
           {

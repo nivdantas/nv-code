@@ -279,8 +279,6 @@ import {
   profileScopeKey,
   useActiveSidebarProfile,
 } from "~/nv/profiles/profileScope";
-import { SidebarBotDialogHost } from "~/nv/bots/SidebarBotDialog";
-import { sidebarBotMenuState } from "~/nv/bots/useSidebarBot";
 import { TooltipScrollDismissArea } from "./ui/tooltip";
 import {
   composerDraftHasUserContent,
@@ -2807,7 +2805,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         const isSettled = settledThreadKeysRef.current.has(threadKey);
         const isSnoozed = snoozedThreadKeysRef.current.has(threadKey);
         const isPinned = thread.pinnedAt != null;
-        const bot = sidebarBotMenuState(threadKey, thread.title);
         const snoozePresets = resolveSnoozePresets(
           new Date(),
           timestampFormat,
@@ -2851,7 +2848,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               ),
               canTurnIntoProject: canTurnThreadIntoProject(threadRef),
               canRename: !fromSearch,
-              isBot: bot.isBot,
               grouping: threadGroupingMenuState(thread),
               supports: {
                 settlement: configLoaded,
@@ -2983,10 +2979,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           }
           case "rename":
             startThreadRename(threadRef, thread.title);
-            return;
-          case "toggle-bot":
-          case "customize-bot":
-            bot.run(clicked.value);
             return;
           case "share-guest":
             openGuestShareDialog(threadRef);
@@ -3463,7 +3455,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               }}
               onShowAll={() => setPersistedProjectScopeKeys([])}
             />
-            <SidebarBotDialogHost />
           </SidebarGroup>
         }
       >

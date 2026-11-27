@@ -1,13 +1,12 @@
 # NV-CODE fork
 
-NV-CODE is T3 Code Nightly with bot rows, sidebar profiles, usage widgets, screenshot mode, the Tako Ink theme and its own branding. Keep the fork thin: new behavior goes in the relevant app’s `src/nv/`, and upstream files get small hooks into it. `vp run nv:touchpoints` fails when an upstream file changes without being listed below.
+NV-CODE is T3 Code Nightly with coordinator Bots, sidebar profiles, usage widgets, screenshot mode, the Tako Ink theme and its own branding. Keep the fork thin: new behavior goes in the relevant app’s `src/nv/`, and upstream files get small hooks into it. `vp run nv:touchpoints` fails when an upstream file changes without being listed below.
 
 ## Layout
 
 | Path                          | Holds                                                                                                                      |
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `apps/web/src/nv/nvStore.ts`  | Profiles and bot choices, persisted under `nv-code:ui-state:v1`. Upstream's `uiStateStore` stays stock.                    |
-| `apps/web/src/nv/bots/`       | Bot art, avatar, customize dialog, brief, row and menu helpers                                                             |
+| `apps/web/src/nv/nvStore.ts`  | Profiles, persisted under `nv-code:ui-state:v1`. Upstream's `uiStateStore` stays stock.                                    |
 | `apps/web/src/nv/profiles/`   | Profile tabs, color choice, scope helpers                                                                                  |
 | `apps/web/src/nv/usage/`      | Usage widgets under the draft composer                                                                                     |
 | `apps/web/src/nv/screenshot/` | Screenshot mode, its store and palette command                                                                             |
@@ -22,7 +21,7 @@ NV-CODE is T3 Code Nightly with bot rows, sidebar profiles, usage widgets, scree
 
 Web hooks, each a few lines:
 
-- `Sidebar.tsx` (profile scope, bot menu, tabs, dialog host), `SidebarThreadRow.tsx` (bot row layout), `SidebarChrome.tsx`, `threadActionMenu.logic.ts`, `useComposerSend.ts` (brief), `ChatView.tsx` (glow, widgets), `CommandPalette.tsx`, `appInit.tsx`, `__root.tsx`, `index.css`, `branding.ts`, `vite.config.ts`, `T3Wordmark.tsx` (re-exports the NV mark), `standalone-page.tsx`.
+- `Sidebar.tsx` (profile scope and tabs), `SidebarChrome.tsx`, `ChatView.tsx` (glow, widgets), `CommandPalette.tsx`, `appInit.tsx`, `__root.tsx`, `index.css`, `branding.ts`, `vite.config.ts`, `T3Wordmark.tsx` (re-exports the NV mark), `standalone-page.tsx`.
 - Keybinding `screenshotMode.toggle`: `packages/contracts/src/keybindings.ts`, `packages/shared/src/keybindings.ts` and `KeybindingsSettings.logic.ts`. One profile test is appended to `Sidebar.browser.test.tsx`.
 - Tako Ink as a built-in: `themePalette.ts` (reserved id and built-in list), `ThemeSettings.tsx` (theme cards), `CommandPaletteThemeItems.tsx`, and `apps/web/index.html` (first-launch default, boot palette, dark base). `src/nv/theme/takoInk.test.ts` fails if the boot palette drifts from the runtime one.
 - Theme hooks, data attributes only: `ThreadDetailsSection.tsx` (`data-thread-details-section`), `ThreadDetailsUsage.tsx` (`data-usage-label`, `data-usage-track`, `data-usage-fill`, `data-usage-value`), `ProviderInstanceIcon.tsx` (`data-provider-driver`).

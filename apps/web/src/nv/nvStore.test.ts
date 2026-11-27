@@ -6,7 +6,6 @@ import {
   parseNvState,
   persistNvState,
   readNvState,
-  useNvStore,
 } from "./nvStore";
 
 function createLocalStorageStub(): Storage {
@@ -32,15 +31,6 @@ const profile = {
 const saved = {
   sidebarProfiles: [profile],
   sidebarActiveProfileId: profile.id,
-  sidebarBotByThreadKey: { "local:deploy": true, "remote:dispatch": false },
-  sidebarBotSettingsByThreadKey: {
-    "local:deploy": {
-      shape: "football" as const,
-      color: "teal" as const,
-      brief: "Triage new issues.",
-      briefPending: true,
-    },
-  },
 };
 
 describe("nvStore persistence", () => {
@@ -55,7 +45,7 @@ describe("nvStore persistence", () => {
     vi.unstubAllGlobals();
   });
 
-  it("restores profiles and bot choices across reloads", () => {
+  it("restores profiles across reloads", () => {
     persistNvState(saved);
     expect(readNvState()).toEqual(saved);
   });
@@ -74,45 +64,30 @@ describe("nvStore persistence", () => {
     );
   });
 
-  it("drops unknown shapes, colors, empty briefs and missing active profiles", () => {
+  it.each([NV_STATE_KEY, LEGACY_NV_STATE_KEY])("drops old bot fields from %s", (key) => {
+    localStorageStub.setItem(
+      key,
+      JSON.stringify({
+        ...saved,
+        sidebarBotByThreadKey: { "local:deploy": true },
+        sidebarBotSettingsByThreadKey: { "local:deploy": { brief: "Triage issues." } },
+      }),
+    );
+
+    expect(readNvState()).toEqual(saved);
+    persistNvState(readNvState());
+    expect(JSON.parse(localStorageStub.getItem(NV_STATE_KEY) ?? "{}")).toEqual(saved);
+  });
+
+  it("drops unknown profile colors and missing active profiles", () => {
     expect(
       parseNvState({
-        sidebarBotSettingsByThreadKey: {
-          "local:a": { shape: "blob", color: "teal", brief: "  " },
-          "local:b": { shape: "nope", color: "nope" },
-        },
         sidebarProfiles: [{ id: "p", name: "P", projectKeys: ["k"], color: "plaid" }],
         sidebarActiveProfileId: "gone",
       }),
     ).toEqual({
       sidebarProfiles: [{ id: "p", name: "P", projectKeys: ["k"] }],
       sidebarActiveProfileId: null,
-      sidebarBotByThreadKey: {},
-      sidebarBotSettingsByThreadKey: { "local:a": { color: "teal" } },
     });
-  });
-});
-
-describe("bot settings", () => {
-  afterEach(() => {
-    useNvStore.setState({ sidebarBotSettingsByThreadKey: {} });
-  });
-
-  it("sends a brief once, and again only after it changes", () => {
-    const store = useNvStore.getState();
-    const settings = () => useNvStore.getState().sidebarBotSettingsByThreadKey["local:bot"];
-
-    store.saveSidebarBotSettings("local:bot", { brief: "Watch deploys." });
-    expect(settings()).toEqual({ brief: "Watch deploys.", briefPending: true });
-
-    store.markSidebarBotBriefSent("local:bot");
-    store.saveSidebarBotSettings("local:bot", { shape: "star", brief: "Watch deploys." });
-    expect(settings()).toEqual({ shape: "star", brief: "Watch deploys." });
-
-    store.saveSidebarBotSettings("local:bot", { shape: "star", brief: "Watch deploys and CI." });
-    expect(settings()?.briefPending).toBe(true);
-
-    store.saveSidebarBotSettings("local:bot", {});
-    expect(settings()).toBeUndefined();
   });
 });

@@ -141,7 +141,7 @@ describe("sidebar header new thread", () => {
   });
 });
 
-it("filters bot and regular threads when switching sidebar profiles", async () => {
+it("filters threads when switching sidebar profiles", async () => {
   const uiState = useUiStateStore.getState();
   const nvState = useNvStore.getState();
   using cleanup = new DisposableStack();
@@ -151,16 +151,15 @@ it("filters bot and regular threads when switching sidebar profiles", async () =
   useNvStore.setState({
     sidebarProfiles: [],
     sidebarActiveProfileId: null,
-    sidebarBotByThreadKey: {},
   });
   const work = project("Work repository");
   const home = project("Home repository");
   vi.mocked(useProjects).mockReturnValue([work, home]);
-  const bot = makeThreadFixture({
+  const assistant = makeThreadFixture({
     environmentId: work.environmentId,
     id: ThreadId.make("robot"),
     projectId: work.id,
-    title: "[[t3plus:bot:v1]] Release assistant",
+    title: "Release assistant",
   });
   const regular = makeThreadFixture({
     environmentId: home.environmentId,
@@ -168,7 +167,7 @@ it("filters bot and regular threads when switching sidebar profiles", async () =
     projectId: home.id,
     title: "Notes",
   });
-  vi.mocked(useQuietThreadShells).mockReturnValue([bot, regular]);
+  vi.mocked(useQuietThreadShells).mockReturnValue([assistant, regular]);
   vi.mocked(useThreadRouteTarget).mockReturnValue({
     kind: "server",
     threadRef: scopeThreadRef(home.environmentId, regular.id),
@@ -182,9 +181,7 @@ it("filters bot and regular threads when switching sidebar profiles", async () =
       </SidebarProvider>
     </>,
   );
-  await expect
-    .element(screen.getByRole("button", { name: /Bot: Release assistant/ }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("button", { name: /Release assistant/ })).toBeVisible();
   await expect.element(screen.getByText("Notes", { exact: true })).toBeVisible();
 
   await userEvent.click(screen.getByRole("button", { name: "Add profile" }));
@@ -197,9 +194,7 @@ it("filters bot and regular threads when switching sidebar profiles", async () =
     .element(screen.getByRole("button", { name: "Work", exact: true }))
     .toHaveAttribute("aria-pressed", "true");
   await expect.element(screen.getByText("Notes", { exact: true })).not.toBeInTheDocument();
-  await expect
-    .element(screen.getByRole("button", { name: /Bot: Release assistant/ }))
-    .toBeVisible();
+  await expect.element(screen.getByRole("button", { name: /Release assistant/ })).toBeVisible();
 
   const tabs = screen.getByRole("group", { name: "Sidebar profiles" });
   await userEvent.click(tabs.getByRole("button", { name: "All projects" }));
