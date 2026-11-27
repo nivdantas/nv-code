@@ -179,6 +179,7 @@ export default defineConfig({
   },
   fmt: {
     ignorePatterns: [
+      "apps/server/src/nv/opSession/skill/**",
       ".repos/**",
       "infra/task-cache/vendor/**",
       // Macroscope requires one glob per line; Markdown formatting corrupts it.
@@ -214,6 +215,7 @@ export default defineConfig({
   },
   lint: {
     ignorePatterns: [
+      "apps/server/src/nv/opSession/skill/**",
       ".repos",
       ".repos/**",
       "infra/task-cache/vendor/**",

@@ -88,6 +88,8 @@ import {
   WorkflowIcon,
 } from "lucide-react";
 import { openThreadFind } from "./chat/threadFindStore";
+import { opSessionCommandItem } from "~/nv/opSession/opSessionCommand";
+import { OP_SESSION_SETTINGS_PATH } from "~/nv/opSession/opSessionNavigation";
 import { screenshotModeCommandItem } from "~/nv/screenshot/screenshotModeCommand";
 import { dispatchPreviewAction } from "./preview/previewActionBus";
 import { previewBridge } from "./preview/previewBridge";
@@ -1815,6 +1817,7 @@ function OpenCommandPaletteDialog(props: {
   });
 
   actionItems.push(screenshotModeCommandItem(gt));
+  actionItems.push(opSessionCommandItem(gt, () => navigate({ to: OP_SESSION_SETTINGS_PATH })));
 
   for (const direction of [1, -1] as const) {
     const title =

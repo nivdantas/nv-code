@@ -1,6 +1,6 @@
 # NV-CODE fork
 
-NV-CODE is T3 Code Nightly with bot rows, sidebar profiles, usage widgets, screenshot mode, the Tako Ink theme and its own branding. Keep the fork thin: new behavior goes in `apps/web/src/nv/` or `apps/desktop/src/nv/`, and upstream files get small hooks into it. `vp run nv:touchpoints` fails when an upstream file changes without being listed below.
+NV-CODE is T3 Code Nightly with bot rows, sidebar profiles, usage widgets, screenshot mode, the Tako Ink theme and its own branding. Keep the fork thin: new behavior goes in the relevant app’s `src/nv/`, and upstream files get small hooks into it. `vp run nv:touchpoints` fails when an upstream file changes without being listed below.
 
 ## Layout
 
@@ -28,6 +28,8 @@ Web hooks, each a few lines:
 - Theme hooks, data attributes only: `ThreadDetailsSection.tsx` (`data-thread-details-section`), `ThreadDetailsUsage.tsx` (`data-usage-label`, `data-usage-track`, `data-usage-fill`, `data-usage-value`), `ProviderInstanceIcon.tsx` (`data-provider-driver`).
 
 Branding outside the web app: `apps/web/index.html`, `manifest.webmanifest`, `nv-code-icon.png`, `nv-grain.png`, `apps/desktop/src/app/DesktopAssets.ts`, `DesktopEnvironment.ts` and `DesktopEnvironment.test.ts`, `DesktopStatePaths.ts`, `DesktopUserData.ts`, the DMG backgrounds `dmg-background-latest.svg` and `dmg-background-nightly.svg`, `scripts/build-desktop-artifact.ts` and `build-desktop-artifact.test.ts`, and the root `package.json` scripts. `apps/desktop/src/main.ts` calls the two first-launch steps in `apps/desktop/src/nv/`.
+
+1Password sessions: `SettingsSidebarNav.tsx`, `settingsSearch.ts`, `_chat.settings.tsx`, `_chat.settings.one-password.tsx` and `routeTree.gen.ts` register the Settings page. `CommandPalette.tsx` opens it. `packages/contracts/src/rpc.ts`, `packages/contracts/src/index.ts` and `clientRpcPermissions.ts` expose the RPCs. `apps/server/src/ws.ts`, `apps/server/src/ws.test.ts`, `RpcAuthorization.ts` and `RpcInstrumentation.ts` wire the service. `apps/server/vite.config.ts` embeds the skill in server and desktop builds. The root `vite.config.ts` excludes the original skill files from linting and formatting. `knip.jsonc` declares the bundled launcher script as an executable entry.
 
 ## Theme hooks
 
