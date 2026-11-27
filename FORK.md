@@ -37,6 +37,8 @@ Tako Ink styles the app only through stable hooks, never Tailwind classes, SVG d
 
 The `nv-code` branch is published, so take upstream by merging a nightly tag, not by rebasing.
 
+For a fresh clone, add the remote with `git remote add upstream https://github.com/pingdotgg/t3code.git` before fetching. To check against a locally available nightly tag, pass it directly to `node scripts/nv-touchpoints.ts <tag>`.
+
 1. `git fetch upstream --tags`, then `git merge v<nightly>`. For `apps/web/src/i18n/translations/*.json`, take upstream's side.
 2. In `apps/web`: `vp run i18n:generate`, then from the repo root `vp run i18n:nv` and `vp run i18n:check`.
 3. From the root: `vp run nv:touchpoints` and `vp run theme:nv:check`.

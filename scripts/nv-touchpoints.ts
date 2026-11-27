@@ -11,13 +11,29 @@ import * as NodePath from "node:path";
 const root = NodePath.resolve(import.meta.dirname, "..");
 const upstream = process.argv[2] ?? "upstream/main";
 const git = (...args: string[]) =>
-  NodeChildProcess.execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
+  NodeChildProcess.execFileSync("git", args, { cwd: root, encoding: "utf8" });
 
-const base = git("merge-base", "HEAD", upstream);
+let upstreamCommit: string;
+try {
+  upstreamCommit = git(
+    "rev-parse",
+    "--verify",
+    "--quiet",
+    "--end-of-options",
+    `${upstream}^{commit}`,
+  ).trim();
+} catch {
+  console.error(
+    `Cannot resolve ${upstream}. Fetch the upstream branch or pass a local upstream tag or ref.`,
+  );
+  process.exit(1);
+}
+
+const base = git("merge-base", "HEAD", upstreamCommit).trim();
 const changed = new Set(
   [
-    ...git("diff", "--name-only", base).split("\n"),
-    ...git("ls-files", "--others", "--exclude-standard").split("\n"),
+    ...git("diff", "--name-only", "--no-renames", "-z", base).split("\0"),
+    ...git("ls-files", "--others", "--exclude-standard", "-z").split("\0"),
   ].filter(Boolean),
 );
 
