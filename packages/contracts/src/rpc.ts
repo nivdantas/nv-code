@@ -5,6 +5,7 @@ import {
   OrchestrationV2SearchThreadsInput,
   OrchestrationV2SearchThreadsResult,
 } from "./orchestrationV2.ts";
+import { OpSessionError, OpSessionStatus } from "./nv/opSession.ts";
 import { OrchestrationDispatchCommandError } from "./orchestrationDispatch.ts";
 import {
   McpAppCallToolInput,
@@ -614,6 +615,8 @@ export const WS_METHODS = {
   peerLinksThreadItem: "peerLinks.threadItem",
   peerLinksPairClient: "peerLinks.pairClient",
   peerLinksPairLink: "peerLinks.pairLink",
+  nvOpSessionStatus: "nv.opSession.status",
+  nvOpSessionSetEnabled: "nv.opSession.setEnabled",
   serverGetSettings: "server.getSettings",
   serverUpdateSettings: "server.updateSettings",
   serverDiscoverSourceControl: "server.discoverSourceControl",
@@ -1032,6 +1035,18 @@ const WsPeerLinksPairLinkRpc = Rpc.make(WS_METHODS.peerLinksPairLink, {
 const WsPeerLinksAnswerRequestRpc = Rpc.make(WS_METHODS.peerLinksAnswerRequest, {
   payload: PeerLinkRequestAnswerInput,
   error: Schema.Union([PeerLinkRequestError, EnvironmentAuthorizationError]),
+});
+
+const WsOpSessionStatusRpc = Rpc.make(WS_METHODS.nvOpSessionStatus, {
+  payload: Schema.Struct({}),
+  success: OpSessionStatus,
+  error: Schema.Union([OpSessionError, EnvironmentAuthorizationError]),
+});
+
+const WsOpSessionSetEnabledRpc = Rpc.make(WS_METHODS.nvOpSessionSetEnabled, {
+  payload: Schema.Struct({ enabled: Schema.Boolean }),
+  success: Schema.Void,
+  error: Schema.Union([OpSessionError, EnvironmentAuthorizationError]),
 });
 
 // No in-tree caller; installed Swift TestFlight builds still request it.
@@ -2540,6 +2555,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsServerRunStorageCleanupRpc,
   WsServerGetStorageCleanupReportRpc,
   WsServerGetDatabaseStorageRpc,
+  WsOpSessionStatusRpc,
+  WsOpSessionSetEnabledRpc,
   WsServerGetSettingsRpc,
   WsServerReclaimDatabaseSpaceRpc,
   WsServerUpdateSettingsRpc,

@@ -14,6 +14,10 @@ import { decodeMsg, msg, useMessages } from "gt-react";
 import { TYPOGRAPHY_ADVANCED_STORAGE_KEY } from "../../appearanceFonts";
 import { writeLocalStorageValue } from "../../hooks/useLocalStorage";
 import type { MessageResolver } from "../../i18n/messages";
+import {
+  OP_SESSION_SETTINGS_ITEM,
+  OP_SESSION_SETTINGS_PATH,
+} from "~/nv/opSession/opSessionNavigation";
 import { commandLabel } from "./KeybindingsSettings.logic";
 import type { ResolvedSettingsScope } from "./settingsScope";
 
@@ -37,6 +41,7 @@ export type SettingsPath =
   | "/settings/connections"
   | "/settings/access"
   | "/settings/secrets"
+  | typeof OP_SESSION_SETTINGS_PATH
   | "/settings/maintenance"
   | "/settings/labs"
   | "/settings/about"
@@ -115,6 +120,7 @@ export const SETTINGS_SECTION_LABELS: Readonly<Record<SettingsPath, string>> = {
   "/settings/connections": msg("Environments"),
   "/settings/access": msg("Sharing & access"),
   "/settings/secrets": msg("Secrets"),
+  [OP_SESSION_SETTINGS_PATH]: OP_SESSION_SETTINGS_ITEM.title,
   "/settings/maintenance": msg("Maintenance"),
   "/settings/labs": msg("Labs"),
   "/settings/about": msg("About"),
@@ -168,7 +174,12 @@ const ALL_SETTINGS_NAV_GROUPS: ReadonlyArray<SettingsNavGroup> = [
   },
   {
     heading: msg("Connections"),
-    paths: ["/settings/connections", "/settings/access", "/settings/secrets"],
+    paths: [
+      "/settings/connections",
+      "/settings/access",
+      "/settings/secrets",
+      OP_SESSION_SETTINGS_PATH,
+    ],
   },
   {
     heading: msg("More"),
@@ -1507,6 +1518,7 @@ export const SETTINGS_SEARCH_ITEMS = [
       `pull request routing trusted environments shared credentials permissions read actions source control ${SOURCE_CONTROL_HOST_LABELS}`,
     ],
   },
+  OP_SESSION_SETTINGS_ITEM,
   {
     id: "secret-providers",
     title: msg("Secret providers"),
@@ -1553,6 +1565,7 @@ const SETTINGS_CATEGORY_SCOPES: Readonly<Record<SettingsPath, SettingsSearchScop
   "/settings/connections": "connections",
   "/settings/access": "connections",
   "/settings/secrets": null,
+  [OP_SESSION_SETTINGS_PATH]: null,
   "/settings/scheduled-tasks": null,
   "/settings/maintenance": null,
   "/settings/labs": null,

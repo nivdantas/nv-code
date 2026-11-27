@@ -72,6 +72,7 @@ export * from "./workflow.ts";
 export * from "./worktreeMcp.ts";
 export * from "./resourceTelemetry.ts";
 export * from "./rpc.ts";
+export * from "./nv/opSession.ts";
 export * from "./worktreeSetup.ts";
 export * from "./secretRequest.ts";
 export * from "./agentFeedback.ts";

@@ -1,0 +1,39 @@
+#!/bin/bash
+# Launcher for op-session.mjs. Finds Node.js 18+ even when it is not on PATH
+# (agent shells often do not load nvm/fnm), then runs the tool.
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  case "$SOURCE" in /*) ;; *) SOURCE="$DIR/$SOURCE" ;; esac
+done
+DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+
+ok_node() {
+  [ -x "$1" ] && "$1" -e 'process.exit(parseInt(process.versions.node) >= 18 ? 0 : 1)' 2>/dev/null
+}
+
+pick_node() {
+  local c
+  if [ -n "${OP_SESSION_NODE:-}" ] && ok_node "$OP_SESSION_NODE"; then echo "$OP_SESSION_NODE"; return 0; fi
+  c="$(command -v node 2>/dev/null)"
+  if [ -n "$c" ] && ok_node "$c"; then echo "$c"; return 0; fi
+  for c in \
+    "$HOME"/.nvm/versions/node/*/bin/node \
+    "$HOME"/.local/share/fnm/node-versions/*/installation/bin/node \
+    "$HOME"/Library/Application\ Support/fnm/node-versions/*/installation/bin/node \
+    "$HOME"/.local/share/mise/installs/node/*/bin/node \
+    "$HOME"/.volta/bin/node \
+    "$HOME"/.asdf/shims/node \
+    /opt/homebrew/bin/node /usr/local/bin/node /usr/bin/node; do
+    if ok_node "$c"; then echo "$c"; return 0; fi
+  done
+  return 1
+}
+
+NODE="$(pick_node)" || {
+  echo "op-session: Node.js 18+ not found. Install Node.js, or set OP_SESSION_NODE=/path/to/node." >&2
+  exit 2
+}
+exec "$NODE" "$DIR/op-session.mjs" "$@"
