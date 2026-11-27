@@ -151,9 +151,13 @@ function HostSettings({ environmentId }: { readonly environmentId: EnvironmentId
       <SettingsSection title={gt("Agent skill")}>
         <SettingsRow
           title={enableLabel}
-          description={gt(
-            "Install the skill on this host. Then ask your agent to use op-session with a 1Password Environment.",
-          )}
+          description={
+            canManage
+              ? gt(
+                  "Install the skill on this host. Then ask your agent to use op-session with a 1Password Environment.",
+                )
+              : gt("Only someone who can manage providers on this host can change this.")
+          }
           control={
             <Switch
               size="sm"

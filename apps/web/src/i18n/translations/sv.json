@@ -12976,6 +12976,7 @@
   "9699ded6ab454736": "Det gick inte att ändra op-session-installationen på den här värden.",
   "82e7898691b3fbd0": "Agentfärdighet",
   "da99c2e94774a72f": "Installera färdigheten på den här värden. Be sedan agenten att använda op-session med en 1Password-miljö.",
+  "85a01a268eb23383": "Bara den som får hantera leverantörer på den här värden kan ändra detta.",
   "b8ef78d883e2bd39": "Reparera installationen",
   "d4cd3789a7ed30f3": "Reparera",
   "d6b3a75e4667e0ef": "Krav på värden",

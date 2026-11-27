@@ -12968,6 +12968,7 @@
   "9699ded6ab454736": "Impossible de modifier l’installation d’op-session sur cet hôte.",
   "82e7898691b3fbd0": "Compétence de l’agent",
   "da99c2e94774a72f": "Installez la compétence sur cet hôte, puis demandez à votre agent d’utiliser op-session avec un environnement 1Password.",
+  "85a01a268eb23383": "Seule une personne autorisée à gérer les fournisseurs sur cet hôte peut modifier ce réglage.",
   "b8ef78d883e2bd39": "Réparer l’installation",
   "d4cd3789a7ed30f3": "Réparer",
   "d6b3a75e4667e0ef": "Prérequis de l’hôte",

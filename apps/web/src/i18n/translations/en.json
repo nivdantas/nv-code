@@ -12977,6 +12977,7 @@
   "9699ded6ab454736": "Could not change the op-session installation on this host.",
   "82e7898691b3fbd0": "Agent skill",
   "da99c2e94774a72f": "Install the skill on this host. Then ask your agent to use op-session with a 1Password Environment.",
+  "85a01a268eb23383": "Only someone who can manage providers on this host can change this.",
   "b8ef78d883e2bd39": "Repair installation",
   "d4cd3789a7ed30f3": "Repair",
   "d6b3a75e4667e0ef": "Host requirements",

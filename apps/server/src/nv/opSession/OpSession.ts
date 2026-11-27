@@ -58,7 +58,13 @@ const make = Effect.gen(function* () {
   // `home` is the provider's own config folder; we only write where it already exists,
   // so enabling never creates folders for providers this host doesn't have.
   const allTargets = [
-    { provider: "Claude Code", home: path.join(home, ".claude") },
+    {
+      provider: "Claude Code",
+      home:
+        environment.CLAUDE_CONFIG_DIR && path.isAbsolute(environment.CLAUDE_CONFIG_DIR)
+          ? environment.CLAUDE_CONFIG_DIR
+          : path.join(home, ".claude"),
+    },
     { provider: "Codex / Pi / Grok", home: null, root: path.join(home, ".agents", "skills") },
     { provider: "Cursor", home: path.join(home, ".cursor") },
     { provider: "OpenCode / fx", home: path.join(xdg, "opencode") },
@@ -235,7 +241,7 @@ const make = Effect.gen(function* () {
         Effect.map(skillState(destination), (state) => ({ provider, state })),
       { concurrency: 4 },
     );
-    const enabled = yield* fs.exists(stateFile);
+    const enabled = yield* readMatches(stateFile, OWNERSHIP);
     return {
       enabled: enabled || skills.some(({ state }) => state === "current" || state === "outdated"),
       skills,
@@ -301,6 +307,21 @@ const make = Effect.gen(function* () {
     }
   }, Effect.scoped);
 
+  // Removes only files we wrote that still match, so anything the user added or changed stays.
+  const uninstall = Effect.fn("OpSession.uninstall")(function* (destination: string) {
+    const files = yield* assets;
+    for (const { relativePath, contents, mode } of files) {
+      const file = path.join(destination, relativePath);
+      if (yield* readMatches(file, contents, mode === 0o755)) yield* fs.remove(file);
+    }
+    yield* fs.remove(path.join(destination, MARKER));
+    for (const folder of [path.join(destination, "scripts"), destination]) {
+      const entries = yield* ifPresent(fs.readDirectory(folder));
+      // Empty, so recursive only lets rm accept a directory.
+      if (entries !== null && entries.length === 0) yield* fs.remove(folder, { recursive: true });
+    }
+  });
+
   const setEnabled = Effect.fn("OpSession.setEnabled")(
     function* (enabled: boolean) {
       if (!supported) return yield* new OpSessionHostError({ reason: "unsupported" });
@@ -309,7 +330,7 @@ const make = Effect.gen(function* () {
         if (enabled && (state === "missing" || state === "outdated")) {
           yield* install(destination, state);
         } else if (!enabled && (state === "current" || state === "outdated")) {
-          yield* fs.remove(destination, { recursive: true });
+          yield* uninstall(destination);
         }
       }
       if (enabled) {
@@ -320,8 +341,8 @@ const make = Effect.gen(function* () {
             () => Effect.void,
           ),
         );
-      } else {
-        yield* fs.remove(stateFile, { force: true });
+      } else if (yield* readMatches(stateFile, OWNERSHIP)) {
+        yield* fs.remove(stateFile);
       }
     },
     Effect.mapError((cause) =>

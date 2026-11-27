@@ -8,7 +8,10 @@ import * as Path from "effect/Path";
 
 import * as OpSession from "./OpSession.ts";
 
-const setup = Effect.fn("OpSessionTest.setup")(function* (platform: NodeJS.Platform = "darwin") {
+const setup = Effect.fn("OpSessionTest.setup")(function* (
+  platform: NodeJS.Platform = "darwin",
+  extraEnv: (home: string) => Record<string, string> = () => ({}),
+) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const home = yield* fs.makeTempDirectoryScoped({ prefix: "nv-op-session-" });
@@ -45,7 +48,7 @@ esac
       Layer.mergeAll(
         Layer.succeed(HostProcess.HomeDirectory, home),
         Layer.succeed(HostProcess.Platform, platform),
-        Layer.succeed(HostProcess.Environment, { HOME: home, PATH: bin }),
+        Layer.succeed(HostProcess.Environment, { HOME: home, PATH: bin, ...extraEnv(home) }),
       ),
     ),
   );
@@ -152,5 +155,44 @@ it.effect("reports Windows as unsupported and performs no probes or installs", (
     assert.deepInclude(yield* Effect.flip(setEnabled(true)), { reason: "unsupported" });
     assert.isFalse(yield* fs.exists(log));
     assert.isFalse(yield* fs.exists(path.join(home, ".agents")));
+  }).pipe(Effect.provide(NodeServices.layer)),
+);
+
+it.live("disable keeps files the user added and an unrelated enabled-state file", () =>
+  Effect.gen(function* () {
+    const { fs, path, home, status, setEnabled } = yield* setup();
+    const skill = path.join(home, ".agents", "skills", "op-session");
+    const stateFile = path.join(home, ".op-session", ".nv-code-enabled");
+    yield* fs.makeDirectory(path.dirname(stateFile), { recursive: true });
+    yield* fs.writeFileString(stateFile, "not ours\n");
+    assert.isFalse((yield* status()).enabled);
+
+    yield* setEnabled(true);
+    const notes = path.join(skill, "notes.md");
+    yield* fs.writeFileString(notes, "mine\n");
+    yield* setEnabled(false);
+
+    assert.equal(yield* fs.readFileString(notes), "mine\n");
+    assert.isFalse(yield* fs.exists(path.join(skill, "SKILL.md")));
+    assert.isFalse(yield* fs.exists(path.join(skill, "scripts")));
+    assert.equal(yield* fs.readFileString(stateFile), "not ours\n");
+    assert.deepInclude((yield* status()).skills, {
+      provider: "Codex / Pi / Grok",
+      state: "unmanaged",
+    });
+  }).pipe(Effect.provide(NodeServices.layer)),
+);
+
+it.live("installs Claude's skill under CLAUDE_CONFIG_DIR when it is set", () =>
+  Effect.gen(function* () {
+    const { fs, path, home, setEnabled } = yield* setup("darwin", (home) => ({
+      CLAUDE_CONFIG_DIR: `${home}/claude-config`,
+    }));
+    yield* fs.makeDirectory(path.join(home, "claude-config"));
+    yield* setEnabled(true);
+    assert.isTrue(
+      yield* fs.exists(path.join(home, "claude-config", "skills", "op-session", "SKILL.md")),
+    );
+    assert.isFalse(yield* fs.exists(path.join(home, ".claude")));
   }).pipe(Effect.provide(NodeServices.layer)),
 );

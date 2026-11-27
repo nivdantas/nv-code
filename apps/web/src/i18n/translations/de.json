@@ -12970,6 +12970,7 @@
   "9699ded6ab454736": "Die op-session-Installation auf diesem Host konnte nicht geändert werden.",
   "82e7898691b3fbd0": "Agenten-Skill",
   "da99c2e94774a72f": "Installiere den Skill auf diesem Host. Bitte dann deinen Agenten, op-session mit einer 1Password-Umgebung zu verwenden.",
+  "85a01a268eb23383": "Nur wer auf diesem Host Anbieter verwalten darf, kann das ändern.",
   "b8ef78d883e2bd39": "Installation reparieren",
   "d4cd3789a7ed30f3": "Reparieren",
   "d6b3a75e4667e0ef": "Host-Anforderungen",

@@ -12968,6 +12968,7 @@
   "9699ded6ab454736": "Não foi possível alterar a instalação do op-session neste host.",
   "82e7898691b3fbd0": "Habilidade do agente",
   "da99c2e94774a72f": "Instale a habilidade neste host. Depois, peça ao agente para usar op-session com um ambiente do 1Password.",
+  "85a01a268eb23383": "Só quem pode gerenciar provedores neste host pode alterar isso.",
   "b8ef78d883e2bd39": "Reparar instalação",
   "d4cd3789a7ed30f3": "Reparar",
   "d6b3a75e4667e0ef": "Requisitos do host",
