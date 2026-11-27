@@ -273,6 +273,7 @@ import {
 import { SidebarContent, SidebarGroup, useSidebar } from "./ui/sidebar";
 import { SidebarChromeFooter, SidebarChromeHeader } from "./sidebar/SidebarChrome";
 import { SidebarHeaderIconButton, SidebarThreadHeader } from "./sidebar/SidebarThreadHeader";
+import { listOrchestratorWorkers } from "~/nv/orchestrator/rows";
 import { SidebarProfileTabs } from "~/nv/profiles/SidebarProfileTabs";
 import {
   applyProfileScopeKeys,
@@ -1192,7 +1193,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
             ? asLaunchingThread(thread)
             : thread,
         );
-  const botGroups = groupBots(listedThreads);
+  const botGroups = listOrchestratorWorkers(groupBots(listedThreads));
   const routeRowThreadKey =
     routeThreadRef === null
       ? null
@@ -1213,7 +1214,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     isSearching: isSearchingThreads,
     scopedProjectKeys: chosenScopeProjectKeys,
     delegatedUnderParent,
-    // Bots list whatever the scope, and their workers are not listed at all.
+    // Bots list whatever the scope; their workers list as ordinary threads.
     findThread: (key) =>
       botGroups.botAndWorkerKeys.has(key)
         ? undefined
