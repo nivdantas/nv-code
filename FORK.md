@@ -16,7 +16,7 @@ NV-CODE is T3 Code Nightly with bot rows, sidebar profiles, usage widgets, scree
 | `apps/web/src/nv/brand.ts`    | `NV_APP_NAME`; the icon is `apps/web/public/nv-code-icon.png`                                           |
 | `apps/web/src/nv/i18n/`       | NV-CODE translations, keyed by English source text                                                      |
 | `apps/desktop/src/nv/`        | Data folder names, the move from pre-rename Nightshift folders, and the Keychain key copy               |
-| `scripts/nv-*.ts`             | Fork tools: `i18n:nv`, `theme:nv`, `theme:nv:check`, `nv:touchpoints`                                   |
+| `scripts/nv-*.ts`             | Fork tools: `i18n:nv`, `theme:nv`, `theme:nv:check`, `nv:touchpoints`, `nv:update`                      |
 
 ## Upstream touch points
 
@@ -37,23 +37,25 @@ Tako Ink styles the app only through stable hooks, never Tailwind classes, SVG d
 
 The `nv-code` branch is published, so take upstream by merging a nightly tag, not by rebasing.
 
-For a fresh clone, add the remote with `git remote add upstream https://github.com/pingdotgg/t3code.git` before fetching. To check against a locally available nightly tag, pass it directly to `node scripts/nv-touchpoints.ts <tag>`.
+For a fresh clone, add the remote with `git remote add upstream https://github.com/pingdotgg/t3code.git` and install dependencies with `vp i`.
 
-1. `git fetch upstream --tags`, then `git merge v<nightly>`. For `apps/web/src/i18n/translations/*.json`, take upstream's side.
-2. In `apps/web`: `vp run i18n:generate`, then from the repo root `vp run i18n:nv` and `vp run i18n:check`.
-3. From the root: `vp run nv:touchpoints` and `vp run theme:nv:check`.
-4. `vp run typecheck` in `apps/web`, then `vp test run src/nv src/themeBoot.test.ts src/themePalette.test.ts src/components/Sidebar.browser.test.tsx`. In `apps/desktop`: `vp test run src/nv`.
+1. Run `vp run nv:update check` to see whether a newer upstream tag is available.
+2. From a clean NV-CODE branch, run `vp run nv:update` to merge the latest nightly. Pass a tag after the command to pick a specific nightly.
+3. If Git finds conflicts outside the generated web catalogs, resolve and stage them, then run `vp run nv:update finish`. The command regenerates the web catalogs, applies NV-CODE translations, and checks translations, fork touch points, and the theme.
+4. In `apps/web`, run `vp run typecheck` and `vp test run src/nv src/themeBoot.test.ts src/themePalette.test.ts src/components/Sidebar.browser.test.tsx`. In `apps/desktop`, run `vp test run src/nv`. Review the staged changes and finish the merge with `git commit --no-edit`.
 
-New user-facing NV-CODE strings: translate them in `apps/web/src/nv/i18n/translations.json`, then run step 2.
+Translate new NV-CODE strings in `apps/web/src/nv/i18n/translations.json`. Run `vp run i18n:generate` in `apps/web`, then `vp run i18n:nv` and `vp run i18n:check` from the root.
 
 ## Releasing
 
 The app version stays the upstream nightly it is built on, so version checks against other T3 environments keep working. Only the tag adds `nv-`. A version with anything after `-nightly.YYYYMMDD.N` switches the build to the stable channel.
 
+Run `vp run nv:update build` to build the Apple silicon DMG for the newest upstream nightly merged into the current branch. To include T3 Connect, supply the public build configuration before building. A fresh checkout can use `cp -n .env.example .env`. [T3 Connect setup](docs/operations/02_connect-setup.md#public-application-configuration)
+
 ```sh
 export PATH="$HOME/.vite-plus/bin:$HOME/.cargo/bin:$PATH"
-V=0.1.13-nightly.20261125.5258
-vp run dist:desktop:dmg --arch arm64 --build-version "$V" --output-dir release/nv-code
+V=$(git tag --merged HEAD --sort=-version:refname --list 'v*-nightly.*' | head -n 1 | cut -c 2-)
+vp run nv:update build
 (cd release/nv-code && shasum -a 256 "NV-CODE-$V-arm64.dmg" > "NV-CODE-$V-arm64.dmg.sha256")
 git tag -a "nv-v$V" -m "NV-CODE $V (macOS arm64)"
 git push origin nv-code "nv-v$V"

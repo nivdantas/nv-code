@@ -29,7 +29,14 @@ try {
   process.exit(1);
 }
 
-const base = git("merge-base", "HEAD", upstreamCommit).trim();
+let mergeHead: string | undefined;
+try {
+  mergeHead = git("rev-parse", "--verify", "--quiet", "MERGE_HEAD").trim();
+} catch {
+  // There is no merge in progress.
+}
+const base =
+  mergeHead === upstreamCommit ? upstreamCommit : git("merge-base", "HEAD", upstreamCommit).trim();
 const changed = new Set(
   [
     ...git("diff", "--name-only", "--no-renames", "-z", base).split("\0"),

@@ -26,10 +26,10 @@ With Vite+, Rust, and the Xcode Command Line Tools installed, run these commands
 
 ```sh
 vp i
-vp run dist:desktop:dmg --arch arm64 --build-version 0.1.13-nightly.20261125.5258 --output-dir release/nv-code
+vp run nv:update build
 ```
 
-Pass the upstream nightly the checkout is based on as `--build-version`; without it the build is versioned 0.1.12 on the stable channel. For an Intel Mac, use `--arch x64` and install the `x86_64-apple-darwin` Rust target. [FORK.md](FORK.md#releasing) has the full release steps.
+The command uses the upstream nightly merged into your branch. On a fresh clone, add the upstream remote and run `git fetch upstream --tags` first. For an Intel Mac, install the `x86_64-apple-darwin` Rust target and run `vp run dist:desktop:dmg --arch x64 --build-version <upstream-version> --output-dir release/nv-code`. [Update and release instructions](FORK.md#taking-upstream-updates)
 
 The first launch moves data from earlier Nightshift builds to the NV-CODE folders and leaves a link at the old path, so saved projects keep working. It also copies the Keychain key that protects saved credentials, so macOS asks once for Keychain access. Because the app ID changed, macOS asks again for permissions such as screen recording and microphone. To see projects and threads on another T3 environment, connect to that environment.
 
