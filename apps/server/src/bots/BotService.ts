@@ -2,7 +2,6 @@ import { botMemoryDirectoryName } from "../nv/bots/preferences.ts";
 import {
   BOT_FILE_MAX_CHARS,
   BOT_NOTE_MAX_COUNT,
-  BOT_WORKER_NOTE_PREFIX,
   BotError,
   type BotFilesReadResult,
   type BotNote,
@@ -26,8 +25,6 @@ import {
 } from "@t3tools/contracts";
 import { formatThreadLink } from "@t3tools/shared/threadLinks";
 import * as Context from "effect/Context";
-import * as Digest from "effect/crypto/Digest";
-import * as Hex from "effect/encoding/Hex";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -35,7 +32,6 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as Ref from "effect/Ref";
-import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
 
@@ -50,11 +46,7 @@ import {
   provisionNvBot,
   refuseAdditionalBot,
 } from "../nv/bots/orchestratorPolicy.ts";
-import {
-  RECENT_WORKER_NOTE_COUNT,
-  workerRunNote,
-  workerNoteIndexSummary,
-} from "../nv/bots/workerNote.ts";
+import { isRetiredWorkerNote } from "../nv/bots/workerNote.ts";
 import * as ProjectionStore from "../orchestration-v2/ProjectionStore.ts";
 import * as ThreadLaunchService from "../orchestration-v2/ThreadLaunchService.ts";
 import * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
@@ -264,7 +256,6 @@ const make = Effect.gen(function* () {
   const threads = yield* ThreadManagementService.ThreadManagementService;
   const launches = yield* ThreadLaunchService.ThreadLaunchService;
   const environment = yield* ServerEnvironment.ServerEnvironment;
-  const digest = yield* Digest.Digest;
   const botsDir = path.resolve(config.baseDir, "bots");
   const watchesPath = path.join(botsDir, "watches.json");
   const lock = yield* Semaphore.make(1);
@@ -363,41 +354,12 @@ const make = Effect.gen(function* () {
     yield* fileSystem.remove(legacy).pipe(Effect.mapError(ioError(threadId)));
   });
 
-  const readNoteHeader = (threadId: ThreadId, target: string) =>
-    Effect.scoped(
-      fileSystem.open(target).pipe(Effect.flatMap((file) => file.readAlloc(4096))),
-    ).pipe(
-      Effect.map((bytes) =>
-        Option.match(bytes, {
-          onNone: () => "",
-          onSome: (value) => new TextDecoder().decode(value),
-        }),
-      ),
-      Effect.catchTags({
-        PlatformError: (error) =>
-          error.reason._tag === "NotFound"
-            ? Effect.succeed(null)
-            : Effect.fail(ioError(threadId)(error)),
-      }),
-    );
-
-  const loadNote = Effect.fn("BotService.loadNote")(function* (
-    threadId: ThreadId,
-    slug: string,
-    headerOnly = false,
-  ) {
+  const loadNote = Effect.fn("BotService.loadNote")(function* (threadId: ThreadId, slug: string) {
     const target = yield* notePath(threadId, slug);
-    const text = yield* headerOnly ? readNoteHeader(threadId, target) : readText(threadId, target);
+    const text = yield* readText(threadId, target);
     if (text === null) return null;
     const parsed = parseNote(slug, text);
-    return {
-      slug,
-      ...parsed,
-      summary: slug.startsWith(BOT_WORKER_NOTE_PREFIX)
-        ? workerNoteIndexSummary(parsed.body)
-        : parsed.summary,
-      updatedAt: yield* modifiedAt(target),
-    };
+    return { slug, ...parsed, updatedAt: yield* modifiedAt(target) };
   });
 
   const listNoteSlugs = Effect.fn("BotService.listNoteSlugs")(function* (threadId: ThreadId) {
@@ -410,37 +372,24 @@ const make = Effect.gen(function* () {
             : Effect.fail(ioError(threadId)(error)),
       }),
     );
+    const retired = names.filter(isRetiredWorkerNote);
+    yield* Effect.forEach(
+      retired,
+      (name) =>
+        fileSystem
+          .remove(path.join(notesDirectory(threadId), name))
+          .pipe(Effect.mapError(ioError(threadId))),
+      { discard: true },
+    );
     return names
-      .filter((name) => name.endsWith(".md"))
+      .filter((name) => name.endsWith(".md") && !isRetiredWorkerNote(name))
       .map((name) => name.slice(0, -3))
       .filter((slug) => NOTE_SLUG.test(slug));
   });
 
-  const loadNotes = Effect.fn("BotService.loadNotes")(function* (
-    threadId: ThreadId,
-    recentOnly = false,
-  ) {
+  const loadNotes = Effect.fn("BotService.loadNotes")(function* (threadId: ThreadId) {
     const slugs = yield* listNoteSlugs(threadId);
-    let selected = slugs;
-    if (recentOnly) {
-      const generated = slugs.filter((slug) => slug.startsWith(BOT_WORKER_NOTE_PREFIX));
-      const recent = yield* Effect.forEach(
-        generated,
-        (slug) =>
-          modifiedAt(path.join(notesDirectory(threadId), `${slug}.md`)).pipe(
-            Effect.map((updatedAt) => ({ slug, updatedAt })),
-          ),
-        { concurrency: 8 },
-      );
-      selected = [
-        ...slugs.filter((slug) => !slug.startsWith(BOT_WORKER_NOTE_PREFIX)),
-        ...recent
-          .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.slug.localeCompare(b.slug))
-          .slice(0, RECENT_WORKER_NOTE_COUNT)
-          .map(({ slug }) => slug),
-      ];
-    }
-    const notes = yield* Effect.forEach(selected, (slug) => loadNote(threadId, slug, recentOnly), {
+    const notes = yield* Effect.forEach(slugs, (slug) => loadNote(threadId, slug), {
       concurrency: 8,
     });
     return notes
@@ -476,7 +425,7 @@ const make = Effect.gen(function* () {
   const readFiles: BotService["Service"]["readFiles"] = Effect.fn("BotService.readFiles")(
     function* ({ threadId }) {
       const preferences = (yield* readText(threadId, preferencesPath(threadId))) ?? "";
-      const notes = yield* loadNotes(threadId, true);
+      const notes = yield* loadNotes(threadId);
       return {
         preferences,
         notes: notes.map(({ slug, title, summary, updatedAt }) => ({
@@ -526,15 +475,9 @@ const make = Effect.gen(function* () {
   const writeNote: BotService["Service"]["writeNote"] = Effect.fn("BotService.writeNote")(
     function* ({ threadId, slug, title, summary, body }) {
       yield* requireBot(threadId);
-      if (slug.startsWith(BOT_WORKER_NOTE_PREFIX)) {
-        return yield* new BotError({ threadId, reason: "reserved_note" });
-      }
       const target = yield* notePath(threadId, slug);
       const existing = yield* listNoteSlugs(threadId);
-      const manualCount = existing.filter(
-        (note) => !note.startsWith(BOT_WORKER_NOTE_PREFIX),
-      ).length;
-      if (manualCount >= BOT_NOTE_MAX_COUNT && !existing.includes(slug)) {
+      if (existing.length >= BOT_NOTE_MAX_COUNT && !existing.includes(slug)) {
         return yield* new BotError({ threadId, reason: "too_many_notes" });
       }
       yield* store(threadId, target, serializeNote({ title, summary, body }));
@@ -689,35 +632,6 @@ const make = Effect.gen(function* () {
     );
   }, locked);
 
-  const writeWorkerNote = Effect.fn("BotService.writeWorkerNote")(function* (input: {
-    readonly botThreadId: ThreadId;
-    readonly threadId: ThreadId;
-    readonly title: string;
-    readonly environmentId: EnvironmentId;
-    readonly event: Extract<MilestoneEvent, { type: "thread.run_settled" }>;
-  }) {
-    const { botThreadId, threadId, event } = input;
-    if (!(yield* isBot(botThreadId))) return;
-    const bytes = new TextEncoder().encode(event.runId);
-    const hash = yield* digest.digest(Digest.sha256, bytes);
-    const slug = `${BOT_WORKER_NOTE_PREFIX}${Hex.encode(hash).slice(0, 48)}`;
-    const target = yield* notePath(botThreadId, slug);
-    if (yield* fileSystem.exists(target)) return;
-    const { turnItems } = yield* projectionStore
-      .getThreadRecords(threadId, ["turnItems"], {
-        turnItemRunIds: [event.runId],
-        turnItemTypes: ["assistant_message"],
-      })
-      .pipe(
-        Effect.catchTags({
-          ProjectionStoreThreadNotFoundError: () => Effect.succeed({ turnItems: [] }),
-        }),
-      );
-    const partial = `${target}.partial`;
-    yield* writeText(botThreadId, partial, serializeNote(workerRunNote({ ...input, turnItems })));
-    yield* fileSystem.rename(partial, target);
-  }, locked);
-
   // Untraced: runs for every milestone, and most return before doing anything.
   const handleMilestone: BotService["Service"]["handleMilestone"] = Effect.fnUntraced(
     function* (event) {
@@ -732,29 +646,6 @@ const make = Effect.gen(function* () {
               .pipe(Effect.orElseSucceed(() => null));
       const leaderId = thread?.groupedUnderThreadId;
       if (leaderId != null) ends.set(leaderId, []);
-      if (
-        thread !== null &&
-        leaderId != null &&
-        event.type === "thread.run_settled" &&
-        (event.outcome === "completed" || event.outcome === "failed")
-      ) {
-        const saved = yield* writeWorkerNote({
-          botThreadId: leaderId,
-          threadId: thread.id,
-          title: thread.title,
-          event,
-          environmentId,
-        }).pipe(Effect.retry({ times: 2, schedule: Schedule.spaced("100 millis") }), Effect.result);
-        if (saved._tag === "Failure") {
-          yield* Effect.logError("Worker note could not be committed; skipping Orchestrator wake", {
-            botThreadId: leaderId,
-            workerThreadId: thread.id,
-            runId: event.runId,
-            error: saved.failure,
-          });
-          return;
-        }
-      }
       for (const [botThreadId, list] of yield* Ref.get(watchesRef)) {
         for (const watch of list) {
           if (!watchMatches(watch, event, environmentId)) continue;

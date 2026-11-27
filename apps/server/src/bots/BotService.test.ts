@@ -1,19 +1,7 @@
 import { assert, it } from "@effect/vitest";
-import {
-  type MilestoneEvent,
-  MilestoneId,
-  ProjectId,
-  RunId,
-  ThreadId,
-  MessageId,
-  TurnItemId,
-} from "@t3tools/contracts";
+import { type MilestoneEvent, MilestoneId, ProjectId, RunId, ThreadId } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
-import * as Fiber from "effect/Fiber";
-import { TestClock } from "effect/testing";
 import { withCurrentBotInstructions } from "./botInstructions.ts";
-import { RECENT_WORKER_NOTE_COUNT } from "../nv/bots/workerNote.ts";
-import * as DateTime from "effect/DateTime";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 
@@ -202,63 +190,37 @@ it.effect(
   },
 );
 
-it.effect("records completed and failed workers while the Orchestrator is busy", () => {
+it.effect("saves no notes for workers and removes earlier automatic worker notes", () => {
   const orchestration = makeOrchestration();
-  const leader = orchestration.addThread("orchestrator", {
-    botConfig: bot,
-    activeRunId: RunId.make("busy"),
-  });
-  const worker = orchestration.addThread("worker", {
-    title: "Checkout fix",
-    groupedUnderThreadId: leader.id,
-  });
-  const runId = RunId.make("run:done");
-  const now = DateTime.makeUnsafe("2026-11-20T00:00:00.000Z");
-  orchestration.turnItemsByRun.set(runId, [
-    {
-      id: TurnItemId.make("final-reply"),
-      threadId: worker.id,
-      runId,
-      nodeId: null,
-      providerThreadId: null,
-      providerTurnId: null,
-      nativeItemRef: null,
-      parentItemId: null,
-      ordinal: 1,
-      status: "completed",
-      title: null,
-      startedAt: now,
-      completedAt: now,
-      updatedAt: now,
-      type: "assistant_message",
-      phase: "final_answer",
-      messageId: MessageId.make("final-reply"),
-      text: "Fixed the checkout test.",
-      streaming: false,
-    },
-  ]);
+  const leader = orchestration.addThread("orchestrator", { botConfig: bot });
+  orchestration.addThread("worker", { groupedUnderThreadId: leader.id });
   return Effect.gen(function* () {
     const bots = yield* BotService.BotService;
-    const completed = milestone("done", { threadId: "worker" });
-    const failed = milestone("fail", { threadId: "worker", outcome: "failed" });
-    yield* bots.handleMilestone(completed);
-    yield* bots.handleMilestone(failed);
-    yield* bots.handleMilestone(completed);
-    const { notes } = yield* bots.readFiles({ threadId: leader.id });
-    assert.sameMembers(
-      notes.map(({ summary }) => summary),
-      [
-        "Worker turn completed. <t3-thread://v2/env:here/worker>",
-        "Worker turn failed. <t3-thread://v2/env:here/worker>",
-      ],
+    const { baseDir } = yield* ServerConfig.ServerConfig;
+    const fs = yield* FileSystem.FileSystem;
+    const path = yield* Path.Path;
+    const directory = path.join(baseDir, "bots", "thread-orchestrator", "notes");
+    yield* fs.makeDirectory(directory, { recursive: true });
+    const generated = path.join(directory, `worker-run-${"a".repeat(48)}.md`);
+    yield* fs.writeFileString(
+      generated,
+      "---\ntitle: Run\nsummary: \n---\nWorker turn completed.\n",
     );
-    for (const { slug, title } of notes) {
-      assert.strictEqual(title, "Checkout fix");
-      const { body } = yield* bots.readNote({ threadId: leader.id, slug });
-      assert.include(body, "<t3-thread://v2/env:here/worker>");
-      if (body.startsWith("Worker turn completed."))
-        assert.include(body, "Fixed the checkout test.");
-    }
+    yield* bots.writeNote({
+      threadId: leader.id,
+      slug: "worker-run-checklist",
+      title: "Checklist",
+      summary: "Kept",
+      body: "Mine",
+    });
+    yield* bots.handleMilestone(milestone("done", { threadId: "worker" }));
+    const { notes } = yield* bots.readFiles({ threadId: leader.id });
+    assert.deepStrictEqual(
+      notes.map(({ slug }) => slug),
+      ["worker-run-checklist"],
+    );
+    assert.isFalse(yield* fs.exists(generated));
+    assert.lengthOf(orchestration.sent, 1);
   }).pipe(provideBots(orchestration));
 });
 
@@ -325,91 +287,6 @@ it.effect("keeps the oldest live Bot and moves the other Bots' workers to it", (
     assert.isEmpty(orchestration.launched);
   }).pipe(provideBots(orchestration));
 });
-
-it.effect(
-  "bounds routine memory, redacts legacy index excerpts, and searches older run notes",
-  () => {
-    const orchestration = makeOrchestration();
-    const { id: threadId } = orchestration.addThread("orchestrator", { botConfig: bot });
-    return Effect.gen(function* () {
-      const bots = yield* BotService.BotService;
-      const { baseDir } = yield* ServerConfig.ServerConfig;
-      const fs = yield* FileSystem.FileSystem;
-      const path = yield* Path.Path;
-      const directory = path.join(baseDir, "bots", "thread-orchestrator", "notes");
-      yield* fs.makeDirectory(directory, { recursive: true });
-      yield* bots.writeNote({
-        threadId,
-        slug: "curated",
-        title: "Decision",
-        summary: "Keep this",
-        body: "Decision body",
-      });
-      for (let i = 0; i <= RECENT_WORKER_NOTE_COUNT; i += 1) {
-        yield* fs.writeFileString(
-          path.join(directory, `worker-run-${i}.md`),
-          `---\ntitle: Run ${i}\nsummary: Legacy private excerpt\n---\nWorker turn completed.\nRecorded at unknown.\n<t3-thread://v2/env:here/worker>\n\nPrivate text in run ${i}\n`,
-        );
-      }
-      const { notes } = yield* bots.readFiles({ threadId });
-      assert.lengthOf(notes, RECENT_WORKER_NOTE_COUNT + 1);
-      assert.include(
-        notes.map(({ slug }) => slug),
-        "curated",
-      );
-      assert.isFalse(notes.some(({ summary }) => summary.includes("private")));
-      const missing = Array.from({ length: RECENT_WORKER_NOTE_COUNT + 1 }, (_, i) => i).find(
-        (i) => !notes.some(({ slug }) => slug === `worker-run-${i}`),
-      )!;
-      const matches = yield* bots.searchNotes({
-        threadId,
-        query: `Private text in run ${missing}`,
-      });
-      assert.include(
-        matches.map(({ slug }) => slug),
-        `worker-run-${missing}`,
-      );
-      const reserved = yield* bots
-        .writeNote({
-          threadId,
-          slug: "worker-run-forged",
-          title: "Forged",
-          summary: "",
-          body: "",
-        })
-        .pipe(Effect.flip);
-      assert.equal(reserved.reason, "reserved_note");
-    }).pipe(provideBots(orchestration));
-  },
-);
-
-it.effect(
-  "withholds the wake when the note cannot be committed and can retry the milestone",
-  () => {
-    const orchestration = makeOrchestration();
-    const { id: threadId } = orchestration.addThread("orchestrator", { botConfig: bot });
-    orchestration.addThread("worker", { groupedUnderThreadId: threadId });
-    return Effect.gen(function* () {
-      const bots = yield* BotService.BotService;
-      const { baseDir } = yield* ServerConfig.ServerConfig;
-      const fs = yield* FileSystem.FileSystem;
-      const path = yield* Path.Path;
-      const directory = path.join(baseDir, "bots", "thread-orchestrator");
-      yield* fs.makeDirectory(directory, { recursive: true });
-      const blocked = path.join(directory, "notes");
-      yield* fs.writeFileString(blocked, "This file blocks the notes directory.");
-      const event = milestone("blocked", { threadId: "worker" });
-      const write = yield* bots.handleMilestone(event).pipe(Effect.forkChild);
-      yield* TestClock.adjust("1 second");
-      yield* Fiber.join(write);
-      assert.isEmpty(orchestration.sent);
-      yield* fs.remove(blocked);
-      yield* bots.handleMilestone(event);
-      assert.lengthOf((yield* bots.readFiles({ threadId })).notes, 1);
-      assert.lengthOf(orchestration.sent, 1);
-    }).pipe(provideBots(orchestration));
-  },
-);
 
 it.effect("the next prompted turn reads edited standing instructions and bounds them", () => {
   const orchestration = makeOrchestration();

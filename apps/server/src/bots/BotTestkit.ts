@@ -5,7 +5,6 @@ import {
   type ModelSelection,
   type OrchestrationV2AppThread,
   type OrchestrationV2ServerCommand,
-  type OrchestrationV2TurnItem,
   ProjectId,
   ProviderInstanceId,
   type RunId,
@@ -65,7 +64,6 @@ export const makeOrchestration = () => {
   const dispatched: Array<OrchestrationV2ServerCommand & { readonly threadId?: ThreadId }> = [];
   const sent: Array<SentMessage> = [];
   const launched: Array<LaunchedThread> = [];
-  const turnItemsByRun = new Map<RunId, ReadonlyArray<OrchestrationV2TurnItem>>();
 
   const addThread = (id: string, fields: Partial<Omit<FakeThread, "id">> = {}): FakeThread => {
     const thread: FakeThread = {
@@ -157,11 +155,7 @@ export const makeOrchestration = () => {
             .filter((thread) => thread.groupedUnderThreadId === threadId)
             .map((thread) => thread.id),
         ),
-      getThreadRecords: (_threadId, _fields, filter) => {
-        const runId = filter?.turnItemRunIds?.[0];
-        const turnItems = runId == null ? [] : (turnItemsByRun.get(runId) ?? []);
-        return Effect.succeed({ turnItems, subagents: [] } as never);
-      },
+      getThreadRecords: () => Effect.succeed({ subagents: [] } as never),
     }),
     Layer.mock(ManagedProjectFolders.ManagedProjectFolders)({
       namedProjectsRoot: "/unused",
@@ -171,7 +165,7 @@ export const makeOrchestration = () => {
       getEnvironmentId: Effect.succeed(EnvironmentId.make("env:here")),
     }),
   );
-  return { threads, dispatched, sent, launched, turnItemsByRun, addThread, layer };
+  return { threads, dispatched, sent, launched, addThread, layer };
 };
 
 /** The Bot service over one fake orchestration and a fresh base directory. */

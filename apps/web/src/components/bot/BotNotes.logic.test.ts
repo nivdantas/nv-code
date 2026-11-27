@@ -4,7 +4,6 @@ import { noteSlugFromTitle } from "./BotNotes.logic";
 
 describe("noteSlugFromTitle", () => {
   it.each([
-    ["Worker run checklist", [], "note-worker-run-checklist"],
     ["Deploy checklist", [], "deploy-checklist"],
     ["  Who owns *CI*?  ", [], "who-owns-ci"],
     ["日本語", [], "note"],

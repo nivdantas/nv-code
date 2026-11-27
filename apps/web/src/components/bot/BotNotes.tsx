@@ -7,7 +7,6 @@ import {
 import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import {
   BOT_FILE_MAX_CHARS,
-  BOT_WORKER_NOTE_PREFIX,
   isTopLevelBot,
   type BotFilesReadResult,
   type BotNote,
@@ -149,10 +148,8 @@ function NoteForm(props: {
   const deleteNote = useAtomCommand(botFilesEnvironment.deleteNote, { reportFailure: false });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const readOnly = !props.canWrite || props.note?.slug.startsWith(BOT_WORKER_NOTE_PREFIX) === true;
   const save = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (readOnly) return;
     const form = new FormData(event.currentTarget);
     const title = String(form.get("title") ?? "").trim();
     if (title === "") {
@@ -199,6 +196,7 @@ function NoteForm(props: {
     setError(message);
     if (message === null) props.onClose();
   };
+  const readOnly = !props.canWrite;
   return (
     <form className="flex flex-col gap-2" onSubmit={save}>
       <div className="flex flex-col gap-1.5">
@@ -248,7 +246,7 @@ function NoteForm(props: {
           {error}
         </p>
       )}
-      {props.canWrite ? (
+      {readOnly ? null : (
         <div className="flex items-center justify-end gap-2">
           {props.note === null ? null : (
             <Button
@@ -261,13 +259,11 @@ function NoteForm(props: {
               <T>Delete</T>
             </Button>
           )}
-          {readOnly ? null : (
-            <Button type="submit" size="sm" disabled={busy}>
-              <T>Save</T>
-            </Button>
-          )}
+          <Button type="submit" size="sm" disabled={busy}>
+            <T>Save</T>
+          </Button>
         </div>
-      ) : null}
+      )}
     </form>
   );
 }

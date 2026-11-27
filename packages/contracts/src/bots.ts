@@ -38,7 +38,6 @@ export function isLiveTopLevelBot(
 
 export const BOT_FILE_MAX_CHARS = 64_000;
 export const BOT_NOTE_MAX_COUNT = 200;
-export const BOT_WORKER_NOTE_PREFIX = "worker-run-";
 
 /** A note's file name under the Bot's notes folder, without `.md`. */
 export const BotNoteSlug = Schema.String.check(
@@ -156,7 +155,6 @@ export class BotError extends Schema.TaggedError<BotError>()("BotError", {
     "launch_failed",
     "note_not_found",
     "too_many_notes",
-    "reserved_note",
   ]),
   /** Why a Bot cannot start from the thread; safe to show. */
   detail: Schema.optional(Schema.String),
@@ -176,8 +174,6 @@ export class BotError extends Schema.TaggedError<BotError>()("BotError", {
         return `The Bot for thread ${this.threadId} could not be started.`;
       case "note_not_found":
         return this.detail ?? "That note does not exist.";
-      case "reserved_note":
-        return "Worker run note names are reserved for automatic notes.";
       case "too_many_notes":
         return `A Bot keeps at most ${BOT_NOTE_MAX_COUNT} notes. Merge or delete some first.`;
     }
