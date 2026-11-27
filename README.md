@@ -1,6 +1,6 @@
 # NV-CODE
 
-NV-CODE is an unofficial source fork of [T3 Code Nightly](https://github.com/pingdotgg/t3code). It is independently maintained with no affiliation to T3 Tools, Inc. The current release, NV-CODE 0.1.14, is built on [Nightly v0.1.14-nightly.20261127.5345](https://github.com/pingdotgg/t3code/releases/tag/v0.1.14-nightly.20261127.5345). The fork started from [Nightly v0.1.13-nightly.20261125.5245](https://github.com/pingdotgg/t3code/releases/tag/v0.1.13-nightly.20261125.5245).
+NV-CODE is an unofficial source fork of [T3 Code Nightly](https://github.com/pingdotgg/t3code). It is independently maintained with no affiliation to T3 Tools, Inc. The current release, NV-CODE 0.1.14 r2, is built on [Nightly v0.1.14-nightly.20261127.5345](https://github.com/pingdotgg/t3code/releases/tag/v0.1.14-nightly.20261127.5345). The fork started from [Nightly v0.1.13-nightly.20261125.5245](https://github.com/pingdotgg/t3code/releases/tag/v0.1.13-nightly.20261125.5245).
 
 ## Download
 
@@ -11,14 +11,14 @@ Get the latest macOS installer (Apple silicon) from [Releases](https://github.co
 The web and desktop clients include these features, inspired by [T3Plus](https://github.com/alextyhwang/t3plus).
 
 - **Usage widgets.** New threads show the available Codex and Claude weekly limits, pace and reset timing, plus recent token activity and reported spend. Open Usage from the cards for the full breakdown. The widgets use the connected environments and your existing permissions.
-- **Bot rows.** Right-click a thread and choose **Show as bot thread** for a dithered avatar, its latest activity, and live status. Titles with the T3Plus marker `[[t3plus:bot:v1]]` are recognized automatically. Choose **Show as regular thread** to undo it.
-- **Bot icons and briefs.** Right-click a bot and choose **Customize bot…** to pick one of eight icons (circle, square, hexagon, diamond, triangle, star, football, basketball) and a color. Write a brief: what the bot is for, what it should do, and anything it should always keep in mind. The brief goes out with your next message to that bot, and again after you change it.
+- **Orchestrator.** Every environment has one Orchestrator, pinned at the top of the sidebar. Tell it what you want done: it starts threads in any of your projects, picks the provider and model for each, follows their progress and reports back. It only delegates and never edits files itself. Its instructions and notes live on the host, so it keeps them across `/clear`, compaction, restarts and devices, and it saves a note each time one of its threads finishes. It can also search every past thread. Edit its instructions and notes in the panel beside its chat. It is created automatically and cannot be archived or deleted.
+- **1Password sessions.** **Settings > 1Password sessions** checks the host for the 1Password CLI, Environments support, the desktop app and Node.js, and tells you what is missing. Turn on **Enable op-session** to install the `op-session` skill for every agent on that host, so agents can run commands with secrets from a 1Password Environment after a single approval, without `.env` files. Skills you installed yourself are left alone.
 - **Sidebar profiles.** Select **Add profile** above the thread list, name it, pick a dot color, and choose its projects. Switching profiles scopes the thread list and search to those projects. Switch back with **All projects**. Use the pencil to rename, recolor, or remove a profile.
 - **Screenshot mode.** Press **Alt+Shift+D** or choose **Enter screenshot mode** from the command palette. A separate view shows example names and messages so you can share screenshots without exposing your work. Use **Esc**, the same shortcut, or **Exit screenshot mode** to return.
 - **Tako Ink theme.** The default theme. A dithered blue tako lives on the ground of the chat's left gutter: it walks, runs, looks at you, jumps, eats an onigiri, drinks water and naps. The thread page gets a dim pixel-grain glow, the Context, Session and Weekly rows get more contrast and show which provider the limits belong to, and sidebar shelves and tabs are easier to spot. Code uses [Commit Mono](https://commitmono.com) when it is installed. Pick another theme in **Settings > Appearance**, and set text sizes in **Settings > Typography**.
 - **NV-CODE look.** The NV icon, the app name across the web and desktop apps, and a pixel-grain glow behind the new-thread composer.
 
-Profiles, bot looks, and bot briefs are saved in the local app client, so they do not follow you to other devices.
+Profiles are saved in the local app client, so they do not follow you to other devices. The Orchestrator's instructions and notes are saved on its host.
 
 ## Build a macOS installer
 
@@ -48,8 +48,8 @@ Open the local pairing URL the development server prints. For the Electron clien
 
 ## Staying close to upstream
 
-NV-CODE code lives in `apps/web/src/nv/` and `apps/desktop/src/nv/`, and upstream files only carry small hooks into it, so upstream nightlies merge with few conflicts. [FORK.md](FORK.md) lists every touch point and the update steps, and `vp run nv:touchpoints` checks that the list is complete.
+NV-CODE code lives in `src/nv/` folders (`apps/web`, `apps/server`, `apps/desktop`, `packages/contracts`), and upstream files only carry small hooks into it, so upstream nightlies merge with few conflicts. [FORK.md](FORK.md) lists every touch point and the update steps, and `vp run nv:touchpoints` checks that the list is complete.
 
 ## License
 
-Source code is available under the [MIT License](LICENSE). See the upstream [trademark policy](TRADEMARK.md) for use of T3 Code branding. The bot artwork in `apps/web/src/nv/bots/botArt.ts` is adapted from T3Plus, Copyright 2026 Alex Wang, under the [PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0/), which does not allow commercial use of that file.
+Source code is available under the [MIT License](LICENSE). See the upstream [trademark policy](TRADEMARK.md) for use of T3 Code branding.
