@@ -13,6 +13,7 @@
     "Connect an environment to check its 1Password setup.": "Verbinde eine Umgebung, um ihre 1Password-Einrichtung zu prüfen.",
     "Could not change the op-session installation on this host.": "Die op-session-Installation auf diesem Host konnte nicht geändert werden.",
     "Could not check 1Password on this host.": "1Password konnte auf diesem Host nicht geprüft werden.",
+    "Could not send to the Orchestrator.": "Senden an den Orchestrator fehlgeschlagen.",
     "Enable op-session": "op-session aktivieren",
     "Gray": "Grau",
     "Green": "Grün",
@@ -28,6 +29,7 @@
     "Node.js 18 or later": "Node.js 18 oder neuer",
     "Only someone who can manage providers on this host can change this.": "Nur wer auf diesem Host Anbieter verwalten darf, kann das ändern.",
     "Open 1Password settings": "1Password-Einstellungen öffnen",
+    "Orchestrator": "Orchestrator",
     "Provider skills": "Provider-Skills",
     "Purple": "Lila",
     "Ready": "Bereit",
@@ -40,8 +42,7 @@
     "The first command for an Environment asks you to approve access in the desktop app.": "Beim ersten Befehl für eine Umgebung musst du den Zugriff in der Desktop-App bestätigen.",
     "What this bot is for, what it should do, and anything it should always keep in mind.": "Wofür dieser Bot da ist, was er tun soll und was er immer beachten soll.",
     "Yellow": "Gelb",
-    "op-session secrets CLI integration agent skill": "op-session Geheimnisse CLI Integration Agent Skill",
-    "Orchestrator": "Orchestrator"
+    "op-session secrets CLI integration agent skill": "op-session Geheimnisse CLI Integration Agent Skill"
   },
   "es": {
     "1Password Environments": "Entornos de 1Password",
@@ -57,6 +58,7 @@
     "Connect an environment to check its 1Password setup.": "Conecta un entorno para comprobar su configuración de 1Password.",
     "Could not change the op-session installation on this host.": "No se pudo cambiar la instalación de op-session en este host.",
     "Could not check 1Password on this host.": "No se pudo comprobar 1Password en este host.",
+    "Could not send to the Orchestrator.": "No se pudo enviar al Orquestador.",
     "Enable op-session": "Activar op-session",
     "Gray": "Gris",
     "Green": "Verde",
@@ -73,6 +75,7 @@
     "Only someone who can manage providers on this host can change this.": "Solo quien puede administrar proveedores en este host puede cambiar esto.",
     "Open 1Password settings": "Abrir los ajustes de 1Password",
     "Orange": "Naranja",
+    "Orchestrator": "Orquestador",
     "Pink": "Rosa",
     "Provider skills": "Habilidades de los proveedores",
     "Purple": "Morado",
@@ -86,8 +89,7 @@
     "The first command for an Environment asks you to approve access in the desktop app.": "El primer comando de un entorno te pide que apruebes el acceso en la aplicación de escritorio.",
     "What this bot is for, what it should do, and anything it should always keep in mind.": "Para qué sirve este bot, qué debe hacer y qué debe tener siempre en cuenta.",
     "Yellow": "Amarillo",
-    "op-session secrets CLI integration agent skill": "op-session secretos CLI integración habilidad agente",
-    "Orchestrator": "Orquestador"
+    "op-session secrets CLI integration agent skill": "op-session secretos CLI integración habilidad agente"
   },
   "fr": {
     "1Password Environments": "Environnements 1Password",
@@ -104,6 +106,7 @@
     "Connect an environment to check its 1Password setup.": "Connectez un environnement pour vérifier sa configuration de 1Password.",
     "Could not change the op-session installation on this host.": "Impossible de modifier l’installation d’op-session sur cet hôte.",
     "Could not check 1Password on this host.": "Impossible de vérifier 1Password sur cet hôte.",
+    "Could not send to the Orchestrator.": "Impossible d’envoyer à l’Orchestrateur.",
     "Enable op-session": "Activer op-session",
     "Gray": "Gris",
     "Green": "Vert",
@@ -119,6 +122,7 @@
     "Node.js 18 or later": "Node.js 18 ou version ultérieure",
     "Only someone who can manage providers on this host can change this.": "Seule une personne autorisée à gérer les fournisseurs sur cet hôte peut modifier ce réglage.",
     "Open 1Password settings": "Ouvrir les paramètres de 1Password",
+    "Orchestrator": "Orchestrateur",
     "Pink": "Rose",
     "Provider skills": "Compétences par fournisseur",
     "Purple": "Violet",
@@ -132,8 +136,7 @@
     "The first command for an Environment asks you to approve access in the desktop app.": "La première commande d’un environnement vous demande d’autoriser l’accès dans l’application de bureau.",
     "What this bot is for, what it should do, and anything it should always keep in mind.": "À quoi sert ce bot, ce qu’il doit faire et ce qu’il doit toujours garder en tête.",
     "Yellow": "Jaune",
-    "op-session secrets CLI integration agent skill": "op-session secrets CLI intégration agent compétence",
-    "Orchestrator": "Orchestrateur"
+    "op-session secrets CLI integration agent skill": "op-session secrets CLI intégration agent compétence"
   },
   "ja": {
     "1Password Environments": "1Password の環境",
@@ -150,6 +153,7 @@
     "Connect an environment to check its 1Password setup.": "環境に接続して 1Password の設定を確認してください。",
     "Could not change the op-session installation on this host.": "このホストの op-session のインストールを変更できませんでした。",
     "Could not check 1Password on this host.": "このホストの 1Password を確認できませんでした。",
+    "Could not send to the Orchestrator.": "オーケストレーターに送信できませんでした。",
     "Enable op-session": "op-session を有効にする",
     "Gray": "グレー",
     "Green": "緑",
@@ -166,6 +170,7 @@
     "Only someone who can manage providers on this host can change this.": "このホストでプロバイダーを管理できるユーザーだけが変更できます。",
     "Open 1Password settings": "1Password 設定を開く",
     "Orange": "オレンジ",
+    "Orchestrator": "オーケストレーター",
     "Pink": "ピンク",
     "Provider skills": "プロバイダーのスキル",
     "Purple": "紫",
@@ -179,8 +184,7 @@
     "The first command for an Environment asks you to approve access in the desktop app.": "環境の最初のコマンドを実行すると、デスクトップアプリでアクセスの承認が求められます。",
     "What this bot is for, what it should do, and anything it should always keep in mind.": "このボットの目的、やるべきこと、常に意識しておくべきこと。",
     "Yellow": "黄",
-    "op-session secrets CLI integration agent skill": "op-session シークレット CLI 連携 エージェント スキル",
-    "Orchestrator": "オーケストレーター"
+    "op-session secrets CLI integration agent skill": "op-session シークレット CLI 連携 エージェント スキル"
   },
   "ko": {
     "1Password Environments": "1Password 환경",
@@ -197,6 +201,7 @@
     "Connect an environment to check its 1Password setup.": "환경에 연결하여 1Password 설정을 확인하세요.",
     "Could not change the op-session installation on this host.": "이 호스트의 op-session 설치를 변경할 수 없습니다.",
     "Could not check 1Password on this host.": "이 호스트의 1Password를 확인할 수 없습니다.",
+    "Could not send to the Orchestrator.": "오케스트레이터에 보내지 못했습니다.",
     "Enable op-session": "op-session 사용",
     "Gray": "회색",
     "Green": "초록색",
@@ -213,6 +218,7 @@
     "Only someone who can manage providers on this host can change this.": "이 호스트에서 제공자를 관리할 수 있는 사용자만 변경할 수 있습니다.",
     "Open 1Password settings": "1Password 설정 열기",
     "Orange": "주황색",
+    "Orchestrator": "오케스트레이터",
     "Pink": "분홍색",
     "Provider skills": "제공업체별 스킬",
     "Purple": "보라색",
@@ -226,8 +232,7 @@
     "The first command for an Environment asks you to approve access in the desktop app.": "환경에서 첫 명령을 실행하면 데스크톱 앱에서 접근 승인을 요청합니다.",
     "What this bot is for, what it should do, and anything it should always keep in mind.": "이 봇의 용도, 해야 할 일, 항상 염두에 둘 내용.",
     "Yellow": "노란색",
-    "op-session secrets CLI integration agent skill": "op-session 비밀 CLI 통합 에이전트 스킬",
-    "Orchestrator": "오케스트레이터"
+    "op-session secrets CLI integration agent skill": "op-session 비밀 CLI 통합 에이전트 스킬"
   },
   "pt-BR": {
     "1Password Environments": "Ambientes do 1Password",
@@ -244,6 +249,7 @@
     "Connect an environment to check its 1Password setup.": "Conecte um ambiente para verificar a configuração do 1Password.",
     "Could not change the op-session installation on this host.": "Não foi possível alterar a instalação do op-session neste host.",
     "Could not check 1Password on this host.": "Não foi possível verificar o 1Password neste host.",
+    "Could not send to the Orchestrator.": "Não foi possível enviar ao Orquestrador.",
     "Enable op-session": "Ativar op-session",
     "Gray": "Cinza",
     "Green": "Verde",
@@ -260,6 +266,7 @@
     "Only someone who can manage providers on this host can change this.": "Só quem pode gerenciar provedores neste host pode alterar isso.",
     "Open 1Password settings": "Abrir configurações do 1Password",
     "Orange": "Laranja",
+    "Orchestrator": "Orquestrador",
     "Pink": "Rosa",
     "Provider skills": "Habilidades por provedor",
     "Purple": "Roxo",
@@ -273,8 +280,7 @@
     "The first command for an Environment asks you to approve access in the desktop app.": "O primeiro comando em um ambiente solicita aprovação de acesso no aplicativo de desktop.",
     "What this bot is for, what it should do, and anything it should always keep in mind.": "Para que serve este bot, o que ele deve fazer e o que ele deve sempre ter em mente.",
     "Yellow": "Amarelo",
-    "op-session secrets CLI integration agent skill": "op-session segredos CLI integração agente habilidade",
-    "Orchestrator": "Orquestrador"
+    "op-session secrets CLI integration agent skill": "op-session segredos CLI integração agente habilidade"
   },
   "ru": {
     "1Password Environments": "Окружения 1Password",
@@ -291,6 +297,7 @@
     "Connect an environment to check its 1Password setup.": "Подключите окружение, чтобы проверить настройки 1Password.",
     "Could not change the op-session installation on this host.": "Не удалось изменить установку op-session на этом хосте.",
     "Could not check 1Password on this host.": "Не удалось проверить 1Password на этом хосте.",
+    "Could not send to the Orchestrator.": "Не удалось отправить Оркестратору.",
     "Enable op-session": "Включить op-session",
     "Gray": "Серый",
     "Green": "Зелёный",
@@ -307,6 +314,7 @@
     "Only someone who can manage providers on this host can change this.": "Изменить это может только тот, кто управляет провайдерами на этом хосте.",
     "Open 1Password settings": "Открыть настройки 1Password",
     "Orange": "Оранжевый",
+    "Orchestrator": "Оркестратор",
     "Pink": "Розовый",
     "Provider skills": "Навыки провайдеров",
     "Purple": "Фиолетовый",
@@ -320,8 +328,7 @@
     "The first command for an Environment asks you to approve access in the desktop app.": "Первая команда для окружения запрашивает разрешение на доступ в приложении для компьютера.",
     "What this bot is for, what it should do, and anything it should always keep in mind.": "Для чего этот бот, что он должен делать и что всегда учитывать.",
     "Yellow": "Жёлтый",
-    "op-session secrets CLI integration agent skill": "op-session секреты CLI интеграция агент навык",
-    "Orchestrator": "Оркестратор"
+    "op-session secrets CLI integration agent skill": "op-session секреты CLI интеграция агент навык"
   },
   "sv": {
     "1Password Environments": "1Password-miljöer",
@@ -338,6 +345,7 @@
     "Connect an environment to check its 1Password setup.": "Anslut en miljö för att kontrollera dess 1Password-konfiguration.",
     "Could not change the op-session installation on this host.": "Det gick inte att ändra op-session-installationen på den här värden.",
     "Could not check 1Password on this host.": "Det gick inte att kontrollera 1Password på den här värden.",
+    "Could not send to the Orchestrator.": "Kunde inte skicka till orkestreraren.",
     "Enable op-session": "Aktivera op-session",
     "Gray": "Grå",
     "Green": "Grön",
@@ -353,6 +361,7 @@
     "Node.js 18 or later": "Node.js 18 eller senare",
     "Only someone who can manage providers on this host can change this.": "Bara den som får hantera leverantörer på den här värden kan ändra detta.",
     "Open 1Password settings": "Öppna 1Password-inställningarna",
+    "Orchestrator": "Orkestrerare",
     "Pink": "Rosa",
     "Provider skills": "Leverantörernas färdigheter",
     "Purple": "Lila",
@@ -366,8 +375,7 @@
     "The first command for an Environment asks you to approve access in the desktop app.": "Det första kommandot för en miljö ber dig godkänna åtkomst i skrivbordsappen.",
     "What this bot is for, what it should do, and anything it should always keep in mind.": "Vad den här boten är till för, vad den ska göra och vad den alltid ska tänka på.",
     "Yellow": "Gul",
-    "op-session secrets CLI integration agent skill": "op-session hemligheter CLI integrering agent färdighet",
-    "Orchestrator": "Orkestrerare"
+    "op-session secrets CLI integration agent skill": "op-session hemligheter CLI integrering agent färdighet"
   },
   "zh": {
     "1Password Environments": "1Password 环境",
@@ -384,6 +392,7 @@
     "Connect an environment to check its 1Password setup.": "连接一个环境以检查其 1Password 设置。",
     "Could not change the op-session installation on this host.": "无法更改此主机上的 op-session 安装。",
     "Could not check 1Password on this host.": "无法检查此主机上的 1Password。",
+    "Could not send to the Orchestrator.": "无法发送给协调器。",
     "Enable op-session": "启用 op-session",
     "Gray": "灰色",
     "Green": "绿色",
@@ -400,6 +409,7 @@
     "Only someone who can manage providers on this host can change this.": "只有可以管理此主机上提供方的用户才能更改此项。",
     "Open 1Password settings": "打开 1Password 设置",
     "Orange": "橙色",
+    "Orchestrator": "协调器",
     "Pink": "粉色",
     "Provider skills": "提供商技能",
     "Purple": "紫色",
@@ -413,7 +423,6 @@
     "The first command for an Environment asks you to approve access in the desktop app.": "首次为某个环境运行命令时，桌面应用会请求你批准访问。",
     "What this bot is for, what it should do, and anything it should always keep in mind.": "这个机器人的用途、要做什么，以及需要始终牢记的内容。",
     "Yellow": "黄色",
-    "op-session secrets CLI integration agent skill": "op-session 密钥 CLI 集成 代理 技能",
-    "Orchestrator": "协调器"
+    "op-session secrets CLI integration agent skill": "op-session 密钥 CLI 集成 代理 技能"
   }
 }

@@ -287,6 +287,8 @@ interface ComposerSendInput {
   readonly acknowledgeActiveThreadWoke: () => void;
   /** Resolves true once the side chat started and got the message. */
   readonly onSideChat?: ((message: SideChatMessage | undefined) => Promise<boolean>) | undefined;
+  /** NV-CODE: sends the whole message to another thread, like a side chat without `/side`. */
+  readonly nvForwardSend?: ((message: SideChatMessage | undefined) => Promise<boolean>) | undefined;
   /** Refuses `/side` with this reason and keeps the draft. */
   readonly sideChatDisabledReason: string | null;
   readonly handleNewThreadInActiveProject: () => void;
@@ -377,8 +379,9 @@ export function useComposerSend(input: ComposerSendInput) {
     setKeepFullHistory,
     anchorNewTurn,
     acknowledgeActiveThreadWoke,
-    onSideChat,
-    sideChatDisabledReason,
+    onSideChat: sideChatHandler,
+    nvForwardSend,
+    sideChatDisabledReason: sideChatUnavailableReason,
     handleNewThreadInActiveProject,
     persistThreadSettingsForNextTurn,
     linkCheckoutPullRequest,
@@ -462,9 +465,13 @@ export function useComposerSend(input: ComposerSendInput) {
       : composerRef.current?.getSendContext();
     const isCurrentRouteThread = () => currentRouteThreadKeyRef.current === routeThreadKey;
     // `/side` beats an open question and a plan follow-up, which would send the text to main.
+    const onSideChat = nvForwardSend ?? sideChatHandler;
+    const sideChatDisabledReason = nvForwardSend ? null : sideChatUnavailableReason;
     const sideChatCommand =
       sendCtx && !directAnnotation && !queuedRunEdit.isEditing
-        ? parseSideChatCommand(promptAtSend)
+        ? nvForwardSend
+          ? { prompt: promptAtSend }
+          : parseSideChatCommand(promptAtSend)
         : null;
     const answeringQuestion =
       Boolean(activePendingUserInput) && sendCtx?.answeringPendingUserInput !== false;

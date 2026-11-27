@@ -308,6 +308,7 @@ import {
 } from "../state/entities";
 import { useEnvironmentShellHasSnapshot } from "../state/shell";
 import { ChatComposer, type ChatComposerHandle } from "./chat/ChatComposer";
+import { useHomeOrchestrator } from "~/nv/orchestrator/useHomeOrchestrator";
 import { DraftHeroHeadline } from "./chat/DraftHeroHeadline";
 import { DraftUsageWidgets } from "~/nv/usage/DraftUsageWidgets";
 import { ExpandedImageDialogHost, openExpandedImagePreview } from "./chat/ExpandedImageDialog";
@@ -1326,6 +1327,12 @@ export default function ChatView(props: ChatViewProps) {
       activeProject,
       environmentById.get(activeProject.environmentId)?.serverConfig?.scratchWorkspaceRoot ?? null,
     );
+  const homeOrchestrator = useHomeOrchestrator(
+    !embedded && isLocalDraftThread ? draftId : null,
+    environmentId,
+    activeProjectIsScratch,
+  );
+  const orchestratorTargetId = homeOrchestrator.targetId;
   const logicalProjectEnvironments = useLogicalProjectEnvironments(
     activeProject,
     activeProjectIsScratch && draftId !== null,
@@ -1934,6 +1941,7 @@ export default function ChatView(props: ChatViewProps) {
           reportedModelSelection,
         );
   const showComposerContextStrip =
+    orchestratorTargetId === null &&
     !embedded &&
     !isBotThread &&
     shouldShowComposerContextStrip({
@@ -3154,6 +3162,14 @@ export default function ChatView(props: ChatViewProps) {
     setThreadError,
   });
   const { onSend, captureDetachedSend } = useComposerSend({
+    nvForwardSend:
+      orchestratorTargetId === null
+        ? undefined
+        : (message) =>
+            homeOrchestrator.send(
+              message,
+              composerRef.current?.getSendContext().selectedModelSelection,
+            ),
     environmentId,
     routeThreadKey,
     currentRouteThreadKeyRef,
@@ -3839,6 +3855,7 @@ export default function ChatView(props: ChatViewProps) {
                           draftId={draftId}
                           activeProjectRef={activeProjectRef}
                           activeProjectTitle={activeProject?.title ?? null}
+                          homeOrchestrator={homeOrchestrator}
                         />
                       </div>
                     </div>
@@ -3891,8 +3908,11 @@ export default function ChatView(props: ChatViewProps) {
                               <ChatComposer
                                 canOperateThread={canOperateThread}
                                 reportedModelSelection={reportedModelSelection}
-                                multipleModelSelections={multipleModelSelections}
+                                multipleModelSelections={
+                                  orchestratorTargetId === null ? multipleModelSelections : null
+                                }
                                 supportsMultipleModels={
+                                  orchestratorTargetId === null &&
                                   serverConfig?.environment.capabilities
                                     .requiredWorktreeBootstrap === true
                                 }
@@ -3980,7 +4000,9 @@ export default function ChatView(props: ChatViewProps) {
                                 activeProjectDefaultModelSelection={
                                   activeProjectDefaultModelSelection
                                 }
-                                activeThreadModelSelection={activeThread?.modelSelection}
+                                activeThreadModelSelection={
+                                  homeOrchestrator.modelSelection ?? activeThread?.modelSelection
+                                }
                                 activeProjectId={activeProject?.id ?? null}
                                 projectName={activeProject?.title}
                                 compactThreadUnavailable={compactThreadUnavailable}
