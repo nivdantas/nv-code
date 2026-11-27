@@ -11,6 +11,11 @@ import { useProject } from "~/state/entities";
 import { buildThreadRouteParams } from "~/threadRoutes";
 import { ThreadDetailsCard } from "../chat/ThreadDetailsCard";
 import { ThreadDetailsSection } from "../chat/ThreadDetailsSection";
+import {
+  ThreadDetailsContext,
+  ThreadDetailsUsage,
+  type ThreadDetailsUsageInput,
+} from "../chat/ThreadDetailsUsage";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import {
@@ -75,6 +80,7 @@ function WorkerGroup(props: {
 export function BotBoardPanel(
   props: Pick<ComponentProps<typeof ThreadDetailsCard>, "anchor" | "handle"> & {
     threadRef: ScopedThreadRef;
+    usage: ThreadDetailsUsageInput;
   },
 ) {
   const gt = useGT();
@@ -139,6 +145,10 @@ export function BotBoardPanel(
               </Menu>
             </ThreadDetailsSection>
           )}
+          <ThreadDetailsUsage {...props.usage} />
+          {props.usage.contextWindow ? (
+            <ThreadDetailsContext usage={props.usage.contextWindow} />
+          ) : null}
         </>
       )}
     </ThreadDetailsCard>

@@ -138,7 +138,7 @@ it.effect("keeps a Bot's memory in its own folder and refuses writes from other 
 });
 
 it.effect(
-  "wakes a Bot when its workers or a watched run reaches a milestone, and not once it is settled",
+  "wakes a Bot only for what it watches, not for its workers, and not once it is settled",
   () => {
     const orchestration = makeOrchestration();
     const leader = orchestration.addThread("thread:bot", { botConfig: bot });
@@ -149,6 +149,10 @@ it.effect(
     return Effect.gen(function* () {
       const bots = yield* BotService.BotService;
       yield* bots.addWatch(leader.id, { workflowRunId: "run:release", reason: "manual" });
+      yield* bots.addWatch(leader.id, {
+        threadId: ThreadId.make("thread:watched"),
+        reason: "manual",
+      });
 
       yield* bots.handleMilestone(milestone("other", { threadId: "thread:other" }));
       // A leader that is not a Bot is never woken.
@@ -157,6 +161,10 @@ it.effect(
         milestone("ask", { threadId: "thread:worker", type: "thread.needs_input" }),
       );
       yield* bots.handleMilestone(milestone("done", { threadId: "thread:worker" }));
+      yield* bots.handleMilestone(
+        milestone("ask", { threadId: "thread:watched", type: "thread.needs_input" }),
+      );
+      yield* bots.handleMilestone(milestone("done", { threadId: "thread:watched" }));
       // A watched run's agent step asking wakes the Bot; its turn ending neither wakes nor ends it.
       yield* bots.handleMilestone(
         milestone("step-ask", {
@@ -180,11 +188,15 @@ it.effect(
         ],
       );
       assert.include(orchestration.sent[0]!.text, "waits for an approval");
-      // The settled run's watch ended; workers stay watched with no watch at all.
+      // Both watches ended when their targets settled.
       assert.deepStrictEqual(yield* bots.watches(leader.id), []);
 
       leader.settledOverride = "settled";
-      yield* bots.handleMilestone(milestone("after-settle", { threadId: "thread:worker" }));
+      yield* bots.addWatch(leader.id, {
+        threadId: ThreadId.make("thread:watched"),
+        reason: "manual",
+      });
+      yield* bots.handleMilestone(milestone("after-settle", { threadId: "thread:watched" }));
       assert.strictEqual(orchestration.sent.length, 4);
     }).pipe(provideBots(orchestration));
   },
@@ -220,7 +232,7 @@ it.effect("saves no notes for workers and removes earlier automatic worker notes
       ["worker-run-checklist"],
     );
     assert.isFalse(yield* fs.exists(generated));
-    assert.lengthOf(orchestration.sent, 1);
+    assert.lengthOf(orchestration.sent, 0);
   }).pipe(provideBots(orchestration));
 });
 

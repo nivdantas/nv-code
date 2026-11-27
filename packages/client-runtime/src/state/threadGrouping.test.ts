@@ -110,7 +110,7 @@ describe("folded workers", () => {
 });
 
 describe("groupBots", () => {
-  it("lists unarchived Bots oldest first and sorts their workers, settled or not, onto the board", () => {
+  it("lists unarchived Bots oldest first and sorts their unsettled workers onto the board", () => {
     const at = (base: GroupableThread, createdAt: string, archived = false) => ({
       ...base,
       lineage: { parentThreadId: null, rootThreadId: base.id, relationshipToParent: null },
@@ -132,6 +132,7 @@ describe("groupBots", () => {
       at(thread("asking", { under: "bot", needsInput: true }), "2026-11-03T00:00:00.000Z"),
       at(thread("busy", { under: "bot", working: true }), "2026-11-03T00:00:00.000Z"),
       at(thread("finished", { under: "bot", settled: true }), "2026-11-03T00:00:00.000Z"),
+      at(thread("idle", { under: "bot" }), "2026-11-03T00:00:00.000Z"),
       at(thread("gone", { under: "bot" }), "2026-11-03T00:00:00.000Z", true),
       at(thread("freed", { under: "archived-bot" }), "2026-11-03T00:00:00.000Z"),
       at(thread("plain"), "2026-11-03T00:00:00.000Z"),
@@ -141,10 +142,10 @@ describe("groupBots", () => {
     expect([ids(board.needsYou), ids(board.working), ids(board.done)]).toEqual([
       ["asking"],
       ["busy"],
-      ["finished"],
+      ["idle"],
     ]);
     expect([...groups.botAndWorkerKeys].toSorted()).toEqual(
-      ["bot", "newer-bot", "asking", "busy", "finished", "gone"]
+      ["bot", "newer-bot", "asking", "busy", "finished", "idle", "gone"]
         .map((id) => `environment-1:${id}`)
         .toSorted(),
     );

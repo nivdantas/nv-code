@@ -165,7 +165,7 @@ export function groupBots<
     const board = boards.get(scopedThreadKey(scopeThreadRef(thread.environmentId, botId)));
     if (board === undefined) continue;
     botAndWorkerKeys.add(keyOf(thread));
-    if (thread.archivedAt !== null) continue;
+    if (thread.archivedAt !== null || thread.settledOverride === "settled") continue;
     const status = workerStatus(thread);
     (status === "needs-input"
       ? board.needsYou

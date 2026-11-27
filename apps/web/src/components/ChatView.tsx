@@ -1624,6 +1624,13 @@ export default function ChatView(props: ChatViewProps) {
     activeThreadLiveTokenUsage,
     activeProviderThread,
   );
+  const threadUsage = {
+    providerInstanceId: activeProviderInstanceId,
+    model: activeUsageModel,
+    providers: providerStatuses,
+    sources: serverConfig?.usageLimitSources ?? EMPTY_USAGE_LIMIT_SOURCES,
+    contextWindow: activeContextWindow,
+  };
   const pendingBackgroundTasks = deriveThreadPendingBackgroundTasks(serverProjection);
   const activeWorkStartedAt =
     deriveActiveWorkStartedAt(activeActivityRun, activeRuntime, localDispatchStartedAt) ??
@@ -4195,6 +4202,7 @@ export default function ChatView(props: ChatViewProps) {
                     anchor={threadPanelPopoverAnchorRef}
                     handle={threadPanelPopoverHandle}
                     threadRef={activeThreadRef}
+                    usage={threadUsage}
                   />
                 ) : (
                   <ThreadDetailsPanel
@@ -4262,13 +4270,7 @@ export default function ChatView(props: ChatViewProps) {
                     onAddProjectScript={saveProjectScriptStable}
                     onUpdateProjectScript={updateProjectScriptStable}
                     onDeleteProjectScript={deleteProjectScriptStable}
-                    usage={{
-                      providerInstanceId: activeProviderInstanceId,
-                      model: activeUsageModel,
-                      providers: providerStatuses,
-                      sources: serverConfig?.usageLimitSources ?? EMPTY_USAGE_LIMIT_SOURCES,
-                      contextWindow: activeContextWindow,
-                    }}
+                    usage={threadUsage}
                   />
                 )}
 

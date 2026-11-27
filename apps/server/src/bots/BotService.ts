@@ -644,8 +644,6 @@ const make = Effect.gen(function* () {
           : yield* projectionStore
               .findThread(event.threadId)
               .pipe(Effect.orElseSucceed(() => null));
-      const leaderId = thread?.groupedUnderThreadId;
-      if (leaderId != null) ends.set(leaderId, []);
       for (const [botThreadId, list] of yield* Ref.get(watchesRef)) {
         for (const watch of list) {
           if (!watchMatches(watch, event, environmentId)) continue;
