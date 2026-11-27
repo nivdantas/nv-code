@@ -807,7 +807,7 @@ const make = Effect.gen(function* () {
         title: input.title,
         generateTitle: false,
         modelSelection: input.modelSelection,
-        runtimeMode: "approval-required",
+        runtimeMode: "full-access",
         interactionMode: "default",
         workspaceStrategy: { type: "root" },
         createdBy: "user",

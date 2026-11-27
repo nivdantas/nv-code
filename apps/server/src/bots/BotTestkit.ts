@@ -55,6 +55,7 @@ export interface LaunchedThread {
   readonly threadId: ThreadId;
   readonly projectId: ProjectId;
   readonly commandId: string;
+  readonly runtimeMode: string;
   readonly text: string | undefined;
 }
 
@@ -103,6 +104,7 @@ export const makeOrchestration = () => {
             threadId,
             projectId: input.projectId,
             commandId: input.commandId,
+            runtimeMode: input.runtimeMode,
             text: input.initialMessage?.text,
           });
           return { threadId } as ThreadLaunchService.ThreadLaunchResult;

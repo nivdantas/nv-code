@@ -276,6 +276,7 @@ it.effect("creates exactly one idle Orchestrator in scratch at startup", () => {
         threadId,
         projectId: ProjectId.make("project:scratch"),
         commandId: "nv:bot:create:nv-orchestrator",
+        runtimeMode: "full-access",
         text: undefined,
       },
     ]);
