@@ -1292,7 +1292,9 @@ export const layer: Layer.Layer<
           ? messageText
           : `${messageText}\n\n${outputInstructions(run.outputSchema)}`;
       const userText =
-        projection.thread.botConfig != null && !plainCommand
+        projection.thread.botConfig != null &&
+        projection.thread.lineage.parentThreadId === null &&
+        !plainCommand
           ? withBotInstructions(promptText)
           : promptText;
       // The provider turn marks cancellation work delivered; restart continuations use their own text or resume natively.

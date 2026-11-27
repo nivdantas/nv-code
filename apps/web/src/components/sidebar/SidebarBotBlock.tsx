@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 
 import { contextMenuSourceOf } from "~/contextMenuSource";
 import { cn } from "~/lib/utils";
+import { orchestratorRows } from "~/nv/orchestrator/rows";
 import { useEnvironment } from "~/state/environments";
 import { BotAvatar } from "../bot/BotAvatar";
 import { type BotAvatarState, resolveBotStatus } from "../bot/botStatus";
@@ -118,9 +119,10 @@ export function SidebarBotBlock(props: {
   onContextMenu: ThreadContextMenuHandler;
 }) {
   const gt = useGT();
+  const bots = orchestratorRows(props.botGroups.bots);
   return (
     <ul aria-label={gt("Bots")} className="mb-2 flex flex-col gap-px">
-      {props.botGroups.bots.map((bot) => {
+      {bots.map((bot) => {
         const key = scopedThreadKey(scopeThreadRef(bot.environmentId, bot.id));
         const board = botWorkersBoard(props.botGroups, key);
         const routeKey = props.routeThreadKey;
@@ -138,7 +140,7 @@ export function SidebarBotBlock(props: {
             bot={bot}
             board={board}
             isActive={isActive}
-            showEnvironment={props.botGroups.bots.length > 1}
+            showEnvironment={bots.length > 1}
             onNavigate={props.onNavigate}
             onContextMenu={props.onContextMenu}
           />

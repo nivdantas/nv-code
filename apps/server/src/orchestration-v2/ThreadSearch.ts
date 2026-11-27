@@ -81,6 +81,7 @@ const SearchRequest = Schema.Struct({
   /** How many of the newest hits to read. */
   hitLimit: Schema.Number,
   projectId: Schema.NullOr(ProjectId),
+  includeHistory: Schema.optionalKey(Schema.Boolean),
   /** Threads the caller already lists, left out before the hit limit. */
   excludedThreadIds: TokenList,
 });
@@ -167,7 +168,7 @@ function accentInsensitiveGlob(token: string): string {
 function buildMessageSearch(
   query: string,
   hasIndex: boolean,
-): Omit<typeof SearchRequest.Type, "projectId" | "excludedThreadIds"> | null {
+): Omit<typeof SearchRequest.Type, "projectId" | "excludedThreadIds" | "includeHistory"> | null {
   const { long, short, words, exact } = messageSearchTokens(query);
   if (long.length === 0) return null;
   // Two-character CJK words are too short for trigrams.
@@ -228,6 +229,15 @@ export function buildSearchSnippet(text: string, matchStart: number): string {
   return `${start > 0 ? "…" : ""}${shown.slice(0, end)}${cut ? "…" : ""}`;
 }
 
+const visibleHistoryScope = (sql: SqlClient.SqlClient, includeHistory: boolean | undefined) =>
+  includeHistory === true
+    ? sql``
+    : sql`
+        AND threads.archived_at IS NULL
+        AND json_extract(threads.payload_json, '$.lineage.relationshipToParent') IS NOT 'subagent'
+        AND json_extract(threads.payload_json, '$.lineage.sideChat') IS NOT 1
+      `;
+
 // Filter hidden subagents and side chats before the hit limit; JS checks word starts and ranking.
 // Both paths narrow ASCII tokens with Latin-1 and Extended-A/B/Additional accent variants.
 // Without FTS5 trigrams, or for two-character CJK words, scan the same eligible messages;
@@ -240,6 +250,7 @@ export const messageHitsQuery = (
     shortSpellings,
     hitLimit,
     projectId,
+    includeHistory,
     excludedThreadIds,
   }: typeof SearchRequest.Encoded,
 ) => sql`
@@ -249,13 +260,10 @@ export const messageHitsQuery = (
       INNER JOIN projection_projects AS projects
         ON projects.project_id = threads.project_id
       WHERE threads.deleted_at IS NULL
-        AND threads.archived_at IS NULL
         AND projects.deleted_at IS NULL
         AND (${projectId} IS NULL OR threads.project_id = ${projectId})
         AND threads.thread_id NOT IN (SELECT value FROM json_each(${excludedThreadIds}))
-        AND json_extract(threads.payload_json, '$.lineage.relationshipToParent')
-          IS NOT 'subagent'
-        AND json_extract(threads.payload_json, '$.lineage.sideChat') IS NOT 1
+        ${visibleHistoryScope(sql, includeHistory)}
     )
     ${
       match === null
@@ -378,7 +386,10 @@ export class ThreadSearch extends Context.Service<
      * palette ranks them, then message matches for the remaining threads.
      */
     readonly searchThreads: (
-      input: OrchestrationSearchThreadsInput & { readonly projectId?: ProjectId | undefined },
+      input: OrchestrationSearchThreadsInput & {
+        readonly projectId?: ProjectId | undefined;
+        readonly includeHistory?: boolean | undefined;
+      },
     ) => Effect.Effect<{ readonly matches: ReadonlyArray<ThreadSearchHit> }, ThreadSearchError>;
     /**
      * The settled threads before `before` that clients omitting older settled threads should
@@ -438,9 +449,12 @@ export const make = Effect.gen(function* () {
   });
 
   const titleCandidates = SqlSchema.findAll({
-    Request: Schema.Struct({ projectId: Schema.NullOr(ProjectId) }),
+    Request: Schema.Struct({
+      projectId: Schema.NullOr(ProjectId),
+      includeHistory: Schema.optionalKey(Schema.Boolean),
+    }),
     Result: TitleCandidateRow,
-    execute: ({ projectId }) => sql`
+    execute: ({ projectId, includeHistory }) => sql`
       SELECT
         threads.payload_json AS thread,
         projects.title AS "projectTitle",
@@ -449,11 +463,8 @@ export const make = Effect.gen(function* () {
       INNER JOIN projection_projects AS projects
         ON projects.project_id = threads.project_id
       WHERE threads.deleted_at IS NULL
-        AND threads.archived_at IS NULL
         AND projects.deleted_at IS NULL
-        AND json_extract(threads.payload_json, '$.lineage.relationshipToParent')
-          IS NOT 'subagent'
-        AND json_extract(threads.payload_json, '$.lineage.sideChat') IS NOT 1
+        ${visibleHistoryScope(sql, includeHistory)}
         AND (${projectId} IS NULL OR threads.project_id = ${projectId})
     `,
   });
@@ -532,6 +543,7 @@ export const make = Effect.gen(function* () {
   const searchMessages = Effect.fn("ThreadSearch.search")(function* (
     input: OrchestrationSearchThreadsInput & {
       readonly projectId: ProjectId | null;
+      readonly includeHistory?: boolean | undefined;
       /** Threads the caller already lists, which must not use up the limit. */
       readonly excludedThreadIds?: ReadonlySet<ThreadId>;
       /** Off for an agent's search, which has no use for the user's picks. */
@@ -566,6 +578,7 @@ export const make = Effect.gen(function* () {
           : yield* searchRows({
               ...messageSearch,
               projectId: input.projectId,
+              ...(input.includeHistory === true ? { includeHistory: true } : {}),
               excludedThreadIds: [...(input.excludedThreadIds ?? [])],
             });
       }),
@@ -642,7 +655,12 @@ export const make = Effect.gen(function* () {
     const now = DateTime.toEpochMillis(yield* DateTime.now);
     // Agents call this rarely, and a project has hundreds of threads, not
     // millions, so ranking every active thread in memory stays cheap.
-    const candidates = yield* read(titleCandidates({ projectId: input.projectId ?? null }));
+    const candidates = yield* read(
+      titleCandidates({
+        projectId: input.projectId ?? null,
+        ...(input.includeHistory === true ? { includeHistory: true } : {}),
+      }),
+    );
     const subjectById = new Map(
       candidates.map((row): [ThreadId, ThreadSearchSubject] => [
         row.thread.id,
@@ -680,6 +698,7 @@ export const make = Effect.gen(function* () {
       query: input.query,
       limit: 50,
       projectId: input.projectId ?? null,
+      includeHistory: input.includeHistory,
       excludedThreadIds: shown,
       picks: false,
     });

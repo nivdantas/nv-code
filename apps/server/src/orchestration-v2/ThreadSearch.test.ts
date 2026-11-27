@@ -1388,6 +1388,39 @@ it.layer(layerTest)("ThreadSearch.searchThreadsWithOlderSettledRows", (it) => {
 });
 
 it.layer(layerTest)("ThreadSearch.searchThreads", (it) => {
+  it.effect("includes retained threads across projects in Orchestrator searches", () =>
+    Effect.gen(function* () {
+      const projections = yield* ProjectionStore.ProjectionStoreV2;
+      const search = yield* ThreadSearch.ThreadSearch;
+      const project = ProjectId.make("project:one");
+      const another = ProjectId.make("project:two");
+      yield* createProject(project);
+      yield* createProject(another);
+      const archived = ThreadId.make("thread:old");
+      const child = ThreadId.make("thread:child");
+      yield* Effect.forEach(
+        [
+          thread(archived, project, { archivedAt: at(1), title: "Archived brass project" }),
+          message(archived, "old-message", "user", "historical needle", { minute: 1 }),
+          thread(child, another, { subagentOf: archived, title: "Brass child" }),
+        ],
+        projections.apply,
+        { discard: true },
+      );
+      assert.isEmpty((yield* search.searchThreads({ query: "brass" })).matches);
+      const { matches } = yield* search.searchThreads({ query: "brass", includeHistory: true });
+      assert.sameMembers(
+        matches.map(({ threadId }) => threadId),
+        [archived, child],
+      );
+      const archivedOnly = yield* search.searchThreads({ query: "needle", includeHistory: true });
+      assert.deepEqual(
+        archivedOnly.matches.map(({ threadId }) => threadId),
+        [archived],
+      );
+    }),
+  );
+
   it.effect("keeps room for a message-only thread behind many titled ones", () =>
     Effect.gen(function* () {
       const projections = yield* ProjectionStore.ProjectionStoreV2;

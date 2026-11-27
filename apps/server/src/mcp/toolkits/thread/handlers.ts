@@ -149,8 +149,13 @@ export const layer = McpToolAccess.toLayer(ThreadToolkit, {
       const { caller } = yield* readCaller();
       const scope = yield* McpInvocationContext.McpInvocationContext;
       const threadSearch = yield* ThreadSearch.ThreadSearch;
+      const includeHistory = scope.thread?.bot === true && scope.thread.subagent !== true;
       const { matches } = yield* threadSearch
-        .searchThreads({ ...input, projectId: input.projectId ?? caller?.projectId })
+        .searchThreads({
+          ...input,
+          projectId: input.projectId ?? (includeHistory ? undefined : caller?.projectId),
+          includeHistory,
+        })
         .pipe(Effect.mapError(unavailable));
       return {
         currentThreadId: scope.thread?.threadId ?? null,

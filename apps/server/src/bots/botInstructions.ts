@@ -1,3 +1,5 @@
+import { NV_ORCHESTRATOR_INSTRUCTIONS } from "../nv/bots/orchestratorInstructions.ts";
+
 // Rides on every Bot turn's prompt, after the user's own words. The server owns this text, so
 // every provider gets it and an existing Bot gets each change on its next turn.
 const BOT_INSTRUCTIONS = `[T3 Bot instructions, from T3 Code]
@@ -15,4 +17,4 @@ export const BOT_RELEASED_QUESTION_ANSWER =
 
 /** An empty prompt stays empty, so a native resume is not turned into a prompted turn. */
 export const withBotInstructions = (text: string): string =>
-  text.trim() === "" ? text : `${text}\n\n${BOT_INSTRUCTIONS}`;
+  text.trim() === "" ? text : `${text}\n\n${BOT_INSTRUCTIONS}\n\n${NV_ORCHESTRATOR_INSTRUCTIONS}`;
