@@ -1,3 +1,4 @@
+import { isLiveTopLevelBot } from "@t3tools/contracts";
 import { classifyCodexManagedError } from "../provider/CodexManagedErrors.ts";
 import { modelSelectionsEqual } from "@t3tools/shared/model";
 import { projectComposerContextForProvider } from "@t3tools/shared/composerContextReferences";
@@ -73,7 +74,7 @@ import {
   isSlashCommandMessage,
   withInlineContext,
 } from "./ContextHandoffDelivery.ts";
-import { withBotInstructions } from "../bots/botInstructions.ts";
+import { withCurrentBotInstructions } from "../bots/botInstructions.ts";
 import { isProviderCommand, outputInstructions } from "./runOutput.ts";
 import * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 import * as IdAllocator from "@t3tools/provider-core/server/IdAllocator";
@@ -419,6 +420,10 @@ export const layer: Layer.Layer<
     const idAllocator = yield* IdAllocator.IdAllocatorV2;
     const fileSystem = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
+    const botPromptServices = Context.make(
+      ServerConfig.ServerConfig,
+      yield* ServerConfig.ServerConfig,
+    ).pipe(Context.add(FileSystem.FileSystem, fileSystem), Context.add(Path.Path, path));
     const projects = yield* ProjectService.ProjectService;
     const setupScripts = yield* ProjectSetupScriptRunner.ProjectSetupScriptRunner;
     const providerAuth = yield* ProviderAuthService.ProviderAuthService;
@@ -1292,10 +1297,14 @@ export const layer: Layer.Layer<
           ? messageText
           : `${messageText}\n\n${outputInstructions(run.outputSchema)}`;
       const userText =
-        projection.thread.botConfig != null &&
-        projection.thread.lineage.parentThreadId === null &&
-        !plainCommand
-          ? withBotInstructions(promptText)
+        !plainCommand &&
+        promptText.trim() !== "" &&
+        isLiveTopLevelBot(projection.thread) &&
+        (yield* projectionStore.listLiveBotIds.pipe(Effect.orElseSucceed(() => [])))[0] ===
+          projection.thread.id
+          ? yield* withCurrentBotInstructions(projection.thread.id, promptText).pipe(
+              Effect.provide(botPromptServices),
+            )
           : promptText;
       // The provider turn marks cancellation work delivered; restart continuations use their own text or resume natively.
       const noteContinuation = isRestartNoteContinuation(

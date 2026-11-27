@@ -1,5 +1,6 @@
 import {
   type CommandId,
+  isLiveTopLevelBot,
   type RuntimeRequestId,
   ThreadId,
   type OrchestrationV2ThreadProjection,
@@ -150,6 +151,17 @@ export const layer = McpToolAccess.toLayer(ThreadToolkit, {
       const scope = yield* McpInvocationContext.McpInvocationContext;
       const threadSearch = yield* ThreadSearch.ThreadSearch;
       const includeHistory = scope.thread?.bot === true && scope.thread.subagent !== true;
+      if (
+        includeHistory &&
+        (caller === undefined ||
+          !isLiveTopLevelBot(caller) ||
+          !(yield* threadSearch.isCanonicalBot(caller.id).pipe(Effect.mapError(unavailable))))
+      ) {
+        return yield* new OrchestratorMcpFailure({
+          code: "capability_denied",
+          message: "The calling thread is no longer the active Orchestrator.",
+        });
+      }
       const { matches } = yield* threadSearch
         .searchThreads({
           ...input,

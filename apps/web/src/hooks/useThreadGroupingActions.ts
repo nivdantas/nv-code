@@ -1,3 +1,4 @@
+import { isTopLevelBot } from "@t3tools/contracts";
 import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
 import {
@@ -39,7 +40,7 @@ export function threadGroupingMenuState(
 ): ThreadActionMenuState["grouping"] {
   if (!isListedThreadLineage(thread.lineage)) return undefined;
   return {
-    isBot: thread.botConfig != null,
+    isBot: isTopLevelBot(thread),
     isGrouped: thread.groupedUnderThreadId != null,
     hasWorkers: workersOf(thread, threads).length > 0,
   };
@@ -64,7 +65,7 @@ export function resolveBulkGroupLeader<
       isListedThreadLineage(thread.lineage),
   );
   if (!sameProject) return null;
-  const leader = selected.find((thread) => thread.botConfig != null) ?? first;
+  const leader = selected.find((thread) => isTopLevelBot(thread)) ?? first;
   if (leader.groupedUnderThreadId != null) return null;
   const leadsWorkers = selected.some(
     (thread) => thread !== leader && workersOf(thread, threads).length > 0,

@@ -1,3 +1,4 @@
+import { isTopLevelBot } from "@t3tools/contracts";
 import { scopeThreadRef, scopedThreadKey } from "@t3tools/client-runtime/environment";
 import { resolveThreadActivityTimestamp } from "@t3tools/client-runtime/state/thread-sort";
 import { msg, T, useGT, useMessages } from "gt-react";
@@ -124,7 +125,7 @@ function ScreenshotMode() {
     .slice(0, 10)
     .map((thread, index) => {
       const threadKey = scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id));
-      const isBot = thread.botConfig != null;
+      const isBot = isTopLevelBot(thread);
       const projectNumber = projectNumbers.get(`${thread.environmentId}:${thread.projectId}`);
       return {
         key: threadKey,

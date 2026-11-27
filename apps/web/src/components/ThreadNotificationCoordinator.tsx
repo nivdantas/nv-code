@@ -1,3 +1,4 @@
+import { isTopLevelBot } from "@t3tools/contracts";
 import { msg } from "gt-react";
 import { m } from "../i18n/messages";
 import {
@@ -247,7 +248,9 @@ export function startThreadNotifications(
     const changed: Array<[NotificationState | undefined, NotificationState]> = [];
     // A Bot that mutes its workers hears only what its workers ask, never that it finished.
     const mutingBotIds = new Set(
-      threads.flatMap((thread) => (thread.botConfig?.muteChildren === true ? [thread.id] : [])),
+      threads.flatMap((thread) =>
+        isTopLevelBot(thread) && thread.botConfig?.muteChildren === true ? [thread.id] : [],
+      ),
     );
     for (const rawThread of threads) {
       if (

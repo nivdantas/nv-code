@@ -1,3 +1,4 @@
+import { isLiveTopLevelBot } from "@t3tools/contracts";
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodeFSP from "node:fs/promises";
 import {
@@ -1431,6 +1432,10 @@ const make = Effect.gen(function* () {
         if (deleted && settings.worktreeOnDelete) kept.push(worktreePath);
         entries.push({ ...entry, reason: sentence(reason) });
       };
+      if (group.some(isLiveTopLevelBot)) {
+        keep("used by the Orchestrator");
+        continue;
+      }
       // Reasons a provider session stop or finished deletion work can clear.
       const waitForStop = (reason: string) => {
         if (deleted && settings.worktreeOnDelete) waiting = true;
@@ -1548,6 +1553,7 @@ const make = Effect.gen(function* () {
             projections.getThreadShell(entry.threadId),
           );
           const latestGroup = latestShells.filter((shell) => shell !== null);
+          if (latestGroup.some(isLiveTopLevelBot)) return "used by the Orchestrator";
           const latestKeys = yield* Effect.forEach(latestGroup, (shell) =>
             shell.worktreePath === null ? Effect.succeed(null) : canonical(shell.worktreePath),
           );

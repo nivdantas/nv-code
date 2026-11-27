@@ -1,3 +1,4 @@
+import { isLiveTopLevelBot } from "@t3tools/contracts";
 import type {
   OrchestrationV2Command,
   OrchestrationV2DomainEvent,
@@ -23,8 +24,10 @@ export const planThreadDeletion = Effect.fn("ThreadDeletion.planThreadDeletion")
   readonly attachmentIds: ReadonlyArray<string>;
   readonly now: DateTime.Utc;
   readonly idAllocator: IdAllocator.IdAllocatorV2["Service"];
-}): Effect.fn.Return<ThreadDeletionPlan, IdAllocator.IdAllocatorV2Error> {
+}): Effect.fn.Return<ThreadDeletionPlan, IdAllocator.IdAllocatorV2Error | string> {
   const { command, projection, now, idAllocator } = input;
+  if (isLiveTopLevelBot(projection.thread))
+    return yield* Effect.fail("The Orchestrator cannot be deleted.");
   const events: Array<OrchestrationV2DomainEvent> = [];
   const effects: Array<PendingOrchestrationEffectV2> = [];
   let current = projection;

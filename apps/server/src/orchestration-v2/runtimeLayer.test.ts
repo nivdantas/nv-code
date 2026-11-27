@@ -14091,6 +14091,7 @@ it.layer(layerTest)("usage-limit recovery", (it) => {
     "stop",
     "stop-before-arm",
     "stop-before-arm-mismatched-recovery",
+    "orchestrator",
   ] as const)("guards a scheduled usage-limit continuation against %s", (scenario) =>
     Effect.gen(function* () {
       const orchestrator = yield* Orchestrator.OrchestratorV2;
@@ -14104,20 +14105,26 @@ it.layer(layerTest)("usage-limit recovery", (it) => {
         defaultModelSelection: modelSelection,
         createdAt: DateTime.formatIso(yield* DateTime.now),
       });
-      yield* orchestrator.dispatch({
-        type: "thread.create",
-        commandId: CommandId.make(`recovery:create:${scenario}`),
+      yield* provisionNvBot(
         threadId,
-        projectId,
-        title: "Limited thread",
-        modelSelection,
-        runtimeMode: "full-access",
-        interactionMode: "default",
-        branch: null,
-        worktreePath: null,
-        createdBy: "user",
-        creationSource: "web",
-      });
+        orchestrator.dispatch({
+          type: "thread.create",
+          commandId: CommandId.make(`recovery:create:${scenario}`),
+          threadId,
+          projectId,
+          title: "Limited thread",
+          modelSelection,
+          runtimeMode: "full-access",
+          interactionMode: "default",
+          branch: null,
+          worktreePath: null,
+          createdBy: "user",
+          creationSource: "web",
+          ...(scenario === "orchestrator"
+            ? { botConfig: { enabled: true, muteChildren: false } }
+            : {}),
+        }),
+      );
       yield* orchestrator.dispatch({
         type: "message.dispatch",
         commandId: CommandId.make(`recovery:message:${scenario}`),
@@ -14269,7 +14276,10 @@ it.layer(layerTest)("usage-limit recovery", (it) => {
         );
         return;
       }
-      const snooze = scenario === "wake" || scenario === "cancel-resume-keep-snooze";
+      const snooze =
+        scenario === "orchestrator" ||
+        scenario === "wake" ||
+        scenario === "cancel-resume-keep-snooze";
       const autoResume = scenario !== "wake";
       const arm = limitRecoveryCommand(shell, autoResume, DateTime.toEpochMillis(now), snooze);
       assert(arm?.type === "thread.metadata.update" && arm.limitRecovery != null);
@@ -14341,10 +14351,11 @@ it.layer(layerTest)("usage-limit recovery", (it) => {
         runId: run.id,
         resetAt,
         autoResume,
-        snooze,
+        snooze: snooze && scenario !== "orchestrator",
         requestId: armCommand.commandId,
       });
-      if (snooze)
+      if (scenario === "orchestrator") assert.isNull(armedShell.snoozedUntil);
+      else if (snooze)
         assert.equal(DateTime.toEpochMillis(armedShell.snoozedUntil!), Date.parse(resetAt));
       if (scenario === "cancel-resume-keep-snooze") {
         yield* TestClock.adjust("10 seconds");
@@ -14699,7 +14710,8 @@ it.layer(layerTest)("usage-limit recovery", (it) => {
       assert.lengthOf(
         after.runs,
         before.runs.length +
-          (scenario === "resume" ||
+          (scenario === "orchestrator" ||
+          scenario === "resume" ||
           scenario === "resume-started" ||
           scenario === "resume-untagged" ||
           stopBeforeArm ||
@@ -14712,7 +14724,8 @@ it.layer(layerTest)("usage-limit recovery", (it) => {
       assert.lengthOf(
         after.messages,
         before.messages.length +
-          (scenario === "resume" ||
+          (scenario === "orchestrator" ||
+          scenario === "resume" ||
           scenario === "resume-started" ||
           scenario === "resume-untagged" ||
           stopBeforeArm ||

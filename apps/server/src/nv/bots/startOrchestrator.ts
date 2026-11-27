@@ -7,6 +7,7 @@ import {
   type ServerProvider,
   type ServerSettings,
 } from "@t3tools/contracts";
+import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
 import * as Schedule from "effect/Schedule";
 
@@ -59,7 +60,13 @@ export const startOrchestrator = Effect.gen(function* () {
       Effect.tapError((error) =>
         Effect.logWarning("Could not ensure the NV-CODE Orchestrator", error),
       ),
-      Effect.retry(Schedule.spaced("10 seconds")),
+      Effect.retry(
+        Schedule.exponential("10 seconds").pipe(
+          Schedule.modifyDelay(({ duration }) =>
+            Effect.succeed(Duration.min(duration, Duration.minutes(15))),
+          ),
+        ),
+      ),
     ),
   );
 });

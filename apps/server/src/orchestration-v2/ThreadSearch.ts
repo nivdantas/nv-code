@@ -1,3 +1,4 @@
+import { listLiveBotIds } from "../nv/bots/orchestratorPolicy.ts";
 import {
   IsoDateTime,
   MessageId,
@@ -377,6 +378,7 @@ export interface ThreadSearchHit {
 export class ThreadSearch extends Context.Service<
   ThreadSearch,
   {
+    readonly isCanonicalBot: (threadId: ThreadId) => Effect.Effect<boolean, ThreadSearchError>;
     /** Message text matches, for clients that rank their own thread list. */
     readonly search: (
       input: OrchestrationSearchThreadsInput,
@@ -765,7 +767,14 @@ export const make = Effect.gen(function* () {
     ];
   });
 
-  return ThreadSearch.of({ search, searchThreads, searchOlderSettled });
+  return ThreadSearch.of({
+    search,
+    searchThreads,
+    searchOlderSettled,
+    isCanonicalBot: Effect.fn("ThreadSearch.isCanonicalBot")((threadId) =>
+      read(listLiveBotIds(sql)).pipe(Effect.map(([canonical]) => canonical === threadId)),
+    ),
+  });
 });
 
 export const layer = Layer.effect(ThreadSearch, make);

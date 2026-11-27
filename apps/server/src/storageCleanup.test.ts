@@ -3001,6 +3001,36 @@ describe("storage cleanup reports and local file policies", () => {
       }),
     ),
   );
+  it.effect("keeps the Orchestrator's scratch folder under age-based cleanup", () =>
+    runCleanupTest(
+      Effect.gen(function* () {
+        yield* TestClock.setTime(NOW_MS);
+        const fixture = yield* cleanupFixture();
+        const scratchRoot = `${fixture.config.baseDir}/scratch`;
+        const folder = `${scratchRoot}/orchestrator`;
+        yield* fixture.fs.makeDirectory(folder, { recursive: true });
+        fixture.setProjectRoots([scratchRoot]);
+        fixture.setStoredWorktreePaths([]);
+        fixture.setPolicy("tracked-changes");
+        fixture.setThreads([
+          {
+            ...shell({ worktreePath: folder, settledAt: at(-20 * DAY_MS), status: "completed" }),
+            botConfig: { enabled: true, muteChildren: false },
+          },
+        ]);
+        const report = yield* fixture.service.runNow;
+        expect(report.entries).toEqual([
+          expect.objectContaining({
+            path: folder,
+            outcome: "kept",
+            reason: "Used by the Orchestrator",
+          }),
+        ]);
+        expect(yield* fixture.fs.exists(folder)).toBe(true);
+      }),
+    ),
+  );
+
   it.effect.each([
     {
       name: "a Git repository in a subfolder",

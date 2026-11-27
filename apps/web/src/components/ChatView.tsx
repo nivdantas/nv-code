@@ -1,3 +1,4 @@
+import { isTopLevelBot } from "@t3tools/contracts";
 import { m } from "../i18n/messages";
 import { thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import { useGT, useMessages } from "gt-react";
@@ -880,7 +881,7 @@ export default function ChatView(props: ChatViewProps) {
       )
     : undefined;
   const isServerThread = serverThread !== null;
-  const isBotThread = serverThread?.botConfig != null;
+  const isBotThread = isServerThread && isTopLevelBot(serverThread);
   const botThreadId = isBotThread ? serverThread.id : null;
   const botName = isBotThread ? serverThread.title : null;
   const timelineBot =

@@ -1,3 +1,4 @@
+import { isLiveTopLevelBot } from "@t3tools/contracts";
 import { AgentScope } from "@t3tools/shared/AgentScope";
 import * as KeyedLock from "@t3tools/shared/KeyedLock";
 import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
@@ -643,7 +644,7 @@ export const layerWithOptions = (
                 const { subagent, bot } = yield* projectionStore.getThread(threadId).pipe(
                   Effect.map((thread) => ({
                     subagent: thread.lineage.relationshipToParent === "subagent",
-                    bot: thread.botConfig != null,
+                    bot: isLiveTopLevelBot(thread),
                   })),
                   Effect.orElseSucceed(() => ({ subagent: false, bot: false })),
                 );

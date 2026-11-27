@@ -125,6 +125,47 @@ function nativeThreadCreated(projectId: ProjectId, threadId: ThreadId) {
   };
 }
 
+it.effect("refuses a forced project deletion before touching any Orchestrator siblings", () =>
+  Effect.gen(function* () {
+    const projectId = ProjectId.make("project:scratch");
+    const botId = ThreadId.make("orchestrator");
+    const siblingId = ThreadId.make("newer-scratch-thread");
+    yield* seedProject(projectId);
+    yield* Effect.gen(function* () {
+      const sink = yield* EventSink.EventSinkV2;
+      const projections = yield* ProjectionStore.ProjectionStoreV2;
+      const service = yield* ProjectService.ProjectService;
+      const bot = nativeThreadCreated(projectId, botId);
+      const sibling = nativeThreadCreated(projectId, siblingId);
+      const later = DateTime.add(bot.occurredAt, { minutes: 1 });
+      yield* sink.write({
+        events: [
+          {
+            ...bot,
+            payload: { ...bot.payload, botConfig: { enabled: true, muteChildren: false } },
+          },
+          {
+            ...sibling,
+            occurredAt: later,
+            payload: { ...sibling.payload, createdAt: later, updatedAt: later },
+          },
+        ],
+      });
+      const error = yield* service
+        .delete({
+          projectId,
+          force: true,
+          commandId: CommandId.make("forced-delete"),
+        })
+        .pipe(Effect.flip);
+      assert.equal(error._tag, "ProjectInvalidError");
+      assert.include(error.message, "contains the Orchestrator");
+      assert.isNull((yield* projections.getThread(botId)).deletedAt);
+      assert.isNull((yield* projections.getThread(siblingId)).deletedAt);
+    }).pipe(Effect.provide(ProjectService.layer.pipe(Layer.provideMerge(layerServices))));
+  }).pipe(Effect.provide(layerDatabase)),
+);
+
 it.effect("retries a partial project deletion without repeating child events or cleanup", () =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;

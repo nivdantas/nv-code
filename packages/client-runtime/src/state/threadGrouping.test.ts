@@ -111,18 +111,23 @@ describe("folded workers", () => {
 
 describe("groupBots", () => {
   it("lists unarchived Bots oldest first and sorts their workers, settled or not, onto the board", () => {
-    const at = (
-      base: GroupableThread,
-      createdAt: string,
-      archived = false,
-    ): GroupableThread & { readonly createdAt: string; readonly archivedAt: string | null } => ({
+    const at = (base: GroupableThread, createdAt: string, archived = false) => ({
       ...base,
+      lineage: { parentThreadId: null, rootThreadId: base.id, relationshipToParent: null },
       createdAt,
       archivedAt: archived ? createdAt : null,
     });
     const groups = groupBots([
       at(thread("newer-bot", { mutedBot: false }), "2026-11-02T00:00:00.000Z"),
       at(thread("bot", { mutedBot: false, settled: true }), "2026-11-01T00:00:00.000Z"),
+      {
+        ...at(thread("delegated-child", { mutedBot: false }), "2026-11-03T00:00:00.000Z"),
+        lineage: {
+          parentThreadId: ThreadId.make("bot"),
+          rootThreadId: ThreadId.make("bot"),
+          relationshipToParent: "subagent",
+        },
+      },
       at(thread("archived-bot", { mutedBot: false }), "2026-11-01T00:00:00.000Z", true),
       at(thread("asking", { under: "bot", needsInput: true }), "2026-11-03T00:00:00.000Z"),
       at(thread("busy", { under: "bot", working: true }), "2026-11-03T00:00:00.000Z"),

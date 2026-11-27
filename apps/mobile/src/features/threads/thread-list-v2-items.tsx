@@ -1,3 +1,4 @@
+import { isTopLevelBot } from "@t3tools/contracts";
 import { useAtomValue } from "@effect/atom-react";
 import * as Dialog from "../../components/ui/Dialog";
 import type { ThreadRowProviderInstance } from "./thread-provider-instance";
@@ -1064,7 +1065,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
         : [],
     [gt, props.autoSettleOptOutSupported, thread.autoSettleDisabledAt],
   );
-  const isBot = thread.botConfig != null;
+  const isBot = isTopLevelBot(thread);
   const canTurnIntoProject = !isBot && canTurnThreadIntoProject(thread);
   const titleMenuItems = useMemo<MenuAction[]>(
     () => [

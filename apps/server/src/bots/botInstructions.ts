@@ -1,3 +1,6 @@
+import type { ThreadId } from "@t3tools/contracts";
+import * as Effect from "effect/Effect";
+import { readOrchestratorPreferences } from "../nv/bots/preferences.ts";
 import { NV_ORCHESTRATOR_INSTRUCTIONS } from "../nv/bots/orchestratorInstructions.ts";
 
 // Rides on every Bot turn's prompt, after the user's own words. The server owns this text, so
@@ -16,5 +19,19 @@ export const BOT_RELEASED_QUESTION_ANSWER =
   "Not answered here. The user sees your question and answers it in their next message. End your turn now.";
 
 /** An empty prompt stays empty, so a native resume is not turned into a prompted turn. */
-export const withBotInstructions = (text: string): string =>
-  text.trim() === "" ? text : `${text}\n\n${BOT_INSTRUCTIONS}\n\n${NV_ORCHESTRATOR_INSTRUCTIONS}`;
+export const withBotInstructions = (text: string, preferences = ""): string =>
+  text.trim() === ""
+    ? text
+    : [
+        text,
+        BOT_INSTRUCTIONS,
+        NV_ORCHESTRATOR_INSTRUCTIONS,
+        ...(preferences === "" ? [] : [`[Orchestrator standing instructions]\n${preferences}`]),
+      ].join("\n\n");
+
+export const withCurrentBotInstructions = Effect.fn("BotInstructions.withCurrent")(function* (
+  threadId: ThreadId,
+  text: string,
+) {
+  return withBotInstructions(text, yield* readOrchestratorPreferences(threadId));
+});

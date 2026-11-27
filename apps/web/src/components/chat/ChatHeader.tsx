@@ -1,3 +1,4 @@
+import { isTopLevelBot } from "@t3tools/contracts";
 import {
   AuthOrchestrationOperateScope,
   type EnvironmentId,
@@ -95,7 +96,7 @@ export const ChatHeader = memo(function ChatHeader({
   const [collapseParentTitle, setCollapseParentTitle] = useState(false);
   const activeThreadRef = scopeThreadRef(activeThreadEnvironmentId, activeThreadId);
   // A Bot works across projects, so its header names the Bot instead of its scratch folder.
-  const isBot = useQuietThreadShell(isServerThread ? activeThreadRef : null)?.botConfig != null;
+  const isBot = isTopLevelBot(useQuietThreadShell(isServerThread ? activeThreadRef : null));
   const canOperateThread = useEnvironmentScope(
     activeThreadEnvironmentId,
     AuthOrchestrationOperateScope,

@@ -1,3 +1,4 @@
+import { isLiveTopLevelBot } from "@t3tools/contracts";
 import {
   CommandId,
   type OrchestrationProjectShell,
@@ -774,6 +775,12 @@ export const make = Effect.gen(function* () {
     const projectThreads = [...snapshot.threads, ...snapshot.archivedThreads].sort(
       (a, b) => DateTime.toEpochMillis(b.createdAt) - DateTime.toEpochMillis(a.createdAt),
     );
+    if (projectThreads.some(isLiveTopLevelBot)) {
+      return yield* new ProjectInvalidError({
+        projectId,
+        detail: "This project cannot be deleted because it contains the Orchestrator.",
+      });
+    }
     if (projectThreads.length > 0 && input.force !== true) {
       return yield* new ProjectNotEmptyError({ projectId });
     }

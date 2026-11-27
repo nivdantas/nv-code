@@ -79,7 +79,7 @@ const thread = (
     readonly linkedPullRequest?: ThreadLinkedPullRequest;
     readonly branchPullRequest?: ThreadLinkedPullRequest;
   } = {},
-): OrchestrationV2DomainEvent => ({
+): Extract<OrchestrationV2DomainEvent, { type: "thread.created" }> => ({
   id: EventId.make(`created:${threadId}`),
   type: "thread.created",
   threadId,
@@ -1388,6 +1388,39 @@ it.layer(layerTest)("ThreadSearch.searchThreadsWithOlderSettledRows", (it) => {
 });
 
 it.layer(layerTest)("ThreadSearch.searchThreads", (it) => {
+  it.effect("historical scope follows the oldest live top-level Bot", () =>
+    Effect.gen(function* () {
+      const projections = yield* ProjectionStore.ProjectionStoreV2;
+      const search = yield* ThreadSearch.ThreadSearch;
+      const project = ProjectId.make("project:canonical");
+      yield* createProject(project);
+      const oldest = ThreadId.make("bot-a");
+      const newer = ThreadId.make("bot-b");
+      const child = ThreadId.make("bot-child");
+      const botConfig = { enabled: true, muteChildren: false } as const;
+      const candidate = thread(oldest, project);
+      yield* Effect.forEach(
+        [candidate, thread(newer, project), thread(child, project, { subagentOf: oldest })],
+        (event) => projections.apply({ ...event, payload: { ...event.payload, botConfig } }),
+        { discard: true },
+      );
+
+      assert.isTrue(yield* search.isCanonicalBot(oldest));
+      assert.isFalse(yield* search.isCanonicalBot(newer));
+      assert.isFalse(yield* search.isCanonicalBot(child));
+
+      yield* projections.apply({
+        type: "thread.archived",
+        id: EventId.make("archive:canonical"),
+        threadId: oldest,
+        occurredAt: at(2),
+        payload: { ...candidate.payload, botConfig, archivedAt: at(2) },
+      });
+      assert.isFalse(yield* search.isCanonicalBot(oldest));
+      assert.isTrue(yield* search.isCanonicalBot(newer));
+    }),
+  );
+
   it.effect("includes retained threads across projects in Orchestrator searches", () =>
     Effect.gen(function* () {
       const projections = yield* ProjectionStore.ProjectionStoreV2;

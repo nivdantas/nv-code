@@ -1,3 +1,4 @@
+import { isTopLevelBot } from "@t3tools/contracts";
 import { msg, useGT, useMessages } from "gt-react";
 import { errorDisplayMessage, thrownErrorMessage } from "@t3tools/client-runtime/errors";
 import { m } from "~/i18n/messages";
@@ -533,7 +534,7 @@ export function useThreadLifecycle(input: ThreadLifecycleInput) {
   const allChildThreadInputs = useChildThreadInputs(activeThreadRef);
   // A Bot's chat shows its workers' requests as cards of their own.
   const childThreadInputs =
-    activeThreadShell?.botConfig == null
+    activeThreadShell === null || !isTopLevelBot(activeThreadShell)
       ? allChildThreadInputs
       : allChildThreadInputs.filter((child) => child.groupedUnderThreadId !== activeThreadShell.id);
   const childInputNow = childInputNowItem(

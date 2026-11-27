@@ -15,8 +15,30 @@ export const ThreadBotConfig = Schema.Struct({
 });
 export type ThreadBotConfig = typeof ThreadBotConfig.Type;
 
+export function isTopLevelBot(
+  thread:
+    | {
+        readonly botConfig?: ThreadBotConfig | null | undefined;
+        readonly lineage: { readonly parentThreadId: ThreadId | null };
+      }
+    | null
+    | undefined,
+): boolean {
+  return thread?.botConfig != null && thread.lineage.parentThreadId === null;
+}
+
+export function isLiveTopLevelBot(
+  thread: NonNullable<Parameters<typeof isTopLevelBot>[0]> & {
+    readonly archivedAt: unknown;
+    readonly deletedAt: unknown;
+  },
+): boolean {
+  return thread.archivedAt === null && thread.deletedAt === null && isTopLevelBot(thread);
+}
+
 export const BOT_FILE_MAX_CHARS = 64_000;
 export const BOT_NOTE_MAX_COUNT = 200;
+export const BOT_WORKER_NOTE_PREFIX = "worker-run-";
 
 /** A note's file name under the Bot's notes folder, without `.md`. */
 export const BotNoteSlug = Schema.String.check(
@@ -134,6 +156,7 @@ export class BotError extends Schema.TaggedError<BotError>()("BotError", {
     "launch_failed",
     "note_not_found",
     "too_many_notes",
+    "reserved_note",
   ]),
   /** Why a Bot cannot start from the thread; safe to show. */
   detail: Schema.optional(Schema.String),
@@ -153,6 +176,8 @@ export class BotError extends Schema.TaggedError<BotError>()("BotError", {
         return `The Bot for thread ${this.threadId} could not be started.`;
       case "note_not_found":
         return this.detail ?? "That note does not exist.";
+      case "reserved_note":
+        return "Worker run note names are reserved for automatic notes.";
       case "too_many_notes":
         return `A Bot keeps at most ${BOT_NOTE_MAX_COUNT} notes. Merge or delete some first.`;
     }

@@ -1,6 +1,7 @@
 import {
   BotError,
   CommandId,
+  isTopLevelBot,
   type OrchestrationV2AppThread,
   type OrchestrationV2ServerCommand,
   ThreadId,
@@ -27,12 +28,17 @@ export const refuseAdditionalBot = (threadId = ThreadId.make(ID_PREFIX)) =>
 export const isNvOrchestratorId = (id: ThreadId) =>
   id === ID_PREFIX || id.startsWith(`${ID_PREFIX}:`);
 
+export const topLevelBotPayload = (sql: SqlClient.SqlClient, column: string) =>
+  sql`(
+    json_extract(${sql(column)}, '$.botConfig.enabled') IS 1
+    AND json_extract(${sql(column)}, '$.lineage.parentThreadId') IS NULL
+  )`;
+
 export const listLiveBotIds = (sql: SqlClient.SqlClient) =>
   sql<{ readonly thread_id: string }>`
     SELECT thread_id FROM orchestration_v2_projection_threads
     WHERE archived_at IS NULL AND deleted_at IS NULL
-      AND json_extract(payload_json, '$.botConfig.enabled') = 1
-      AND json_extract(payload_json, '$.lineage.parentThreadId') IS NULL
+      AND ${topLevelBotPayload(sql, "payload_json")}
     ORDER BY created_at, thread_id
   `.pipe(Effect.map((rows) => rows.map((row) => ThreadId.make(row.thread_id))));
 
@@ -65,7 +71,7 @@ export const nvBotLifecycleError = (
   thread: OrchestrationV2AppThread,
   provisionedThreadId: ThreadId | null,
 ): string | undefined => {
-  if (thread.botConfig == null || thread.lineage.parentThreadId !== null) return;
+  if (!isTopLevelBot(thread)) return;
   switch (command.type) {
     case "thread.archive":
       if (provisionedThreadId === thread.id) return;

@@ -3593,3 +3593,79 @@ it.effect("keeps thread groups one level deep without bumping activity", () =>
     assert.isNull((yield* projections.getThread(worker)).groupedUnderThreadId);
   }).pipe(Effect.provide(layerTest)),
 );
+
+it.effect("auto-settles a completed delegated child that inherited the Bot config", () =>
+  Effect.gen(function* () {
+    const orchestrator = yield* Orchestrator.OrchestratorV2;
+    const projections = yield* ProjectionStore.ProjectionStoreV2;
+    const parent = ThreadId.make("orchestrator");
+    const child = ThreadId.make("delegated-child");
+    const now = yield* DateTime.now;
+    yield* provisionNvBot(
+      parent,
+      orchestrator.dispatch({
+        type: "thread.create",
+        commandId: CommandId.make("orchestrator:create"),
+        threadId: parent,
+        projectId: ProjectId.make("project:scratch"),
+        title: "Orchestrator",
+        modelSelection,
+        runtimeMode: "full-access",
+        interactionMode: "default",
+        branch: null,
+        worktreePath: null,
+        createdBy: "user",
+        creationSource: "server",
+        botConfig: { enabled: true, muteChildren: false },
+      }),
+    );
+    const bot = yield* projections.getThread(parent);
+    yield* projections.apply({
+      type: "thread.created",
+      id: EventId.make("delegated-child:create"),
+      threadId: child,
+      occurredAt: now,
+      payload: {
+        ...bot,
+        id: child,
+        title: "Delegated child",
+        lineage: { parentThreadId: parent, rootThreadId: parent, relationshipToParent: "subagent" },
+      },
+    });
+    yield* projections.apply({
+      id: EventId.make("delegated-child:run"),
+      type: "run.created",
+      threadId: child,
+      occurredAt: now,
+      payload: {
+        id: RunId.make("delegated-child:run"),
+        threadId: child,
+        ordinal: 1,
+        providerInstanceId: instanceId,
+        modelSelection,
+        providerThreadId: null,
+        userMessageId: MessageId.make("delegated-child:message"),
+        rootNodeId: null,
+        activeAttemptId: null,
+        status: "completed",
+        requestedAt: now,
+        startedAt: now,
+        completedAt: now,
+        checkpointId: null,
+        contextHandoffId: null,
+      },
+    });
+    assert.isEmpty(yield* projections.getSettlementCandidates(parent));
+    assert.deepEqual(
+      (yield* projections.getSettlementCandidates(child)).map(({ id }) => id),
+      [child],
+    );
+    yield* orchestrator.dispatch({
+      type: "thread.auto-settle",
+      commandId: CommandId.make("delegated-child:settle"),
+      threadId: child,
+      snapshotAt: now,
+    });
+    assert.isNotNull((yield* projections.getThread(child)).settledAt);
+  }).pipe(Effect.provide(layerTest)),
+);

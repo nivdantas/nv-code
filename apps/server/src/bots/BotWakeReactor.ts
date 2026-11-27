@@ -1,3 +1,4 @@
+import { isLiveTopLevelBot } from "@t3tools/contracts";
 import { CommandId, type OrchestrationV2DomainEvent } from "@t3tools/contracts";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -53,7 +54,7 @@ const make = Effect.gen(function* () {
     const requestId = questionOf(event);
     if (requestId === null) return;
     const thread = yield* projections.getThread(event.threadId);
-    if (thread.botConfig == null || thread.lineage.parentThreadId !== null) return;
+    if (!isLiveTopLevelBot(thread)) return;
     yield* engine.dispatch({
       type: "runtime-request.release-to-message",
       commandId: CommandId.make(`server:bot-question-release:${requestId}:${event.type}`),

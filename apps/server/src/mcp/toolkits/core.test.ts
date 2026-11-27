@@ -967,6 +967,58 @@ it.effect("search names the calling thread, so an agent can tell its own match a
   ),
 );
 
+it.effect("a Bot credential loses historical search when its owner retires", () => {
+  let archivedAt: string | null = null;
+  let canonical = true;
+  const historyScope = { ...scope, thread: { ...scope.thread!, bot: true } };
+  return Effect.gen(function* () {
+    const server = yield* McpServer.McpServer;
+    const search = server
+      .callTool({ name: "t3_thread_search", arguments: { query: "old work" } })
+      .pipe(
+        Effect.provideService(McpInvocationContext.McpInvocationContext, historyScope),
+        Effect.provideService(McpSchema.McpServerClient, client),
+      );
+    expect((yield* search).isError).toBe(false);
+    canonical = false;
+    expect(declaredFailure(yield* search)).toMatchObject({ code: "capability_denied" });
+    archivedAt = "2026-11-27T00:00:00.000Z";
+    expect(declaredFailure(yield* search)).toMatchObject({ code: "capability_denied" });
+  }).pipe(
+    Effect.provide(
+      McpHttpServer.layerThreadToolkit.pipe(
+        Layer.provideMerge(McpHttpServer.layerInProcessMcpServer),
+        Layer.provide(NodeCrypto.layer),
+        Layer.provide(
+          Layer.mock(ThreadManagement.ThreadManagementService)({
+            getThreadShell: (id) =>
+              Effect.sync(() => ({
+                ...McpToolAccessTestkit.liveThreadShell(id, { runtimeMode: "auto" }),
+                archivedAt: archivedAt === null ? null : DateTime.makeUnsafe(archivedAt),
+                botConfig: { enabled: true, muteChildren: false },
+              })),
+          }),
+        ),
+        Layer.provide(
+          Layer.mock(ThreadSearch.ThreadSearch)({
+            isCanonicalBot: () => Effect.sync(() => canonical),
+            searchThreads: ({ includeHistory, projectId }) => {
+              expect(includeHistory).toBe(true);
+              expect(projectId).toBeUndefined();
+              return Effect.succeed({ matches: [] });
+            },
+          }),
+        ),
+        Layer.provide(Layer.mock(ProviderRegistry.ProviderRegistry)({})),
+        Layer.provide(Layer.mock(ScheduledTaskService.ScheduledTaskService)({})),
+        Layer.provide(Layer.mock(PeerForwarding.PeerForwarding)({})),
+        Layer.provide(Layer.mock(PeerLinkRequests.PeerLinkRequests)({})),
+        Layer.provide(Layer.mock(PeerLinks.PeerLinks)({})),
+      ),
+    ),
+  );
+});
+
 it.effect("a read-only client reads threads and is refused every write before it runs", () =>
   Effect.gen(function* () {
     const server = yield* McpServer.McpServer;

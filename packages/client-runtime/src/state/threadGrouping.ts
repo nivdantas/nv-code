@@ -1,3 +1,4 @@
+import { isTopLevelBot } from "@t3tools/contracts";
 import type { EnvironmentThreadShell } from "./models.ts";
 import { threadRuntimeIsActive } from "./models.ts";
 import { scopedThreadKey, scopeThreadRef } from "../environment/scoped.ts";
@@ -149,10 +150,10 @@ export interface BotGroups<T> {
 const EMPTY_BOARD: BotWorkersBoard<never> = { needsYou: [], working: [], done: [] };
 
 export function groupBots<
-  T extends GroupableThread & Pick<EnvironmentThreadShell, "archivedAt" | "createdAt">,
+  T extends GroupableThread & Pick<EnvironmentThreadShell, "archivedAt" | "createdAt" | "lineage">,
 >(threads: ReadonlyArray<T>): BotGroups<T> {
   const bots = threads
-    .filter((thread) => thread.botConfig != null && thread.archivedAt === null)
+    .filter((thread) => isTopLevelBot(thread) && thread.archivedAt === null)
     .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
   const boards = new Map<string, { needsYou: T[]; working: T[]; done: T[] }>(
     bots.map((bot) => [keyOf(bot), { needsYou: [], working: [], done: [] }] as const),

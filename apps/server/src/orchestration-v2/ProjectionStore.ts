@@ -1,4 +1,4 @@
-import { listLiveBotIds } from "../nv/bots/orchestratorPolicy.ts";
+import { listLiveBotIds, topLevelBotPayload } from "../nv/bots/orchestratorPolicy.ts";
 import type { ProjectThreadAwarenessV2Input } from "@t3tools/shared/agentAwareness";
 import { applyOrchestrationV2ThreadVisit, pendingGuestMessageCount } from "@t3tools/contracts";
 import { applyThreadPullRequestLinkUpdate } from "../sourceControl/threadPullRequests.ts";
@@ -9017,6 +9017,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
               AND json_extract(t.payload_json, '$.settledOverride') IS NULL
               AND json_extract(t.payload_json, '$.pinnedAt') IS NULL
               AND json_extract(t.payload_json, '$.autoSettleDisabledAt') IS NULL
+              AND NOT ${topLevelBotPayload(sql, "t.payload_json")}
               AND (
                 json_extract(t.payload_json, '$.lineage.relationshipToParent') IS NOT 'subagent'
                 OR NOT EXISTS (

@@ -6,7 +6,12 @@ import type {
 } from "@t3tools/contracts";
 import { formatThreadLink } from "@t3tools/shared/threadLinks";
 
-export const WORKER_NOTE_PREFIX = "worker-run-";
+export const RECENT_WORKER_NOTE_COUNT = 20;
+
+export function workerNoteIndexSummary(body: string): string {
+  const [outcome, , link] = body.split("\n", 3);
+  return [outcome, link].filter(Boolean).join(" ");
+}
 
 function truncate(text: string, limit: number): string {
   return text.length <= limit ? text : `${text.slice(0, limit - 1).trimEnd()}…`;
@@ -33,16 +38,13 @@ export function workerRunNote(input: {
   const excerpt =
     final?.type === "assistant_message" ? final.text.replace(/\s+/gu, " ").trim() : "";
   const outcome = event.outcome === "completed" ? "Worker turn completed." : "Worker turn failed.";
-  return {
-    title: truncate(title, 120),
-    summary: excerpt === "" ? outcome : `${outcome} ${truncate(excerpt, 240)}`,
-    body: [
-      outcome,
-      `Recorded at ${event.occurredAt}.`,
-      formatThreadLink({ environmentId, threadId }),
-      ...(excerpt === ""
-        ? []
-        : ["", "Worker's final reply excerpt:", `> ${truncate(excerpt, 1200)}`]),
-    ].join("\n"),
-  };
+  const body = [
+    outcome,
+    `Recorded at ${event.occurredAt}.`,
+    formatThreadLink({ environmentId, threadId }),
+    ...(excerpt === ""
+      ? []
+      : ["", "Worker's final reply excerpt:", `> ${truncate(excerpt, 1200)}`]),
+  ].join("\n");
+  return { title: truncate(title, 120), summary: workerNoteIndexSummary(body), body };
 }

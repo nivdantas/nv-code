@@ -1,3 +1,4 @@
+import { isLiveTopLevelBot, isTopLevelBot } from "@t3tools/contracts";
 import {
   isNvOrchestratorId,
   NV_BOT_COMMAND_PREFIX,
@@ -4698,7 +4699,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
           commandType: command.type,
           cause,
         });
-      if (command.botMuteChildren !== undefined && thread.botConfig == null) {
+      if (command.botMuteChildren !== undefined && !isTopLevelBot(thread)) {
         return yield* refuse(`Thread ${command.threadId} is not a Bot.`);
       }
       const leaderId = command.groupedUnderThreadId;
@@ -4711,7 +4712,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
             `Thread ${command.threadId} is not a top-level thread, so it cannot be grouped.`,
           );
         }
-        if (thread.botConfig != null) {
+        if (isTopLevelBot(thread)) {
           return yield* refuse(`Thread ${command.threadId} is a Bot; a Bot is never a worker.`);
         }
         const leader = yield* projectionStore.findThread(leaderId).pipe(mapDispatchError(command));
@@ -5077,7 +5078,11 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       const run = usageLimitBlockedRun(projection.runs, projection.turnItems, null);
       const failure = latestRootProviderFailure(run, projection.turnItems);
       const resetMs = Date.parse(command.limitRecovery.resetAt);
-      if (command.limitRecovery.snooze === true && resetMs <= DateTime.toEpochMillis(now)) {
+      if (
+        !isTopLevelBot(thread) &&
+        command.limitRecovery.snooze === true &&
+        resetMs <= DateTime.toEpochMillis(now)
+      ) {
         return yield* new OrchestratorDispatchError({
           commandId: command.commandId,
           commandType: command.type,
@@ -5369,7 +5374,9 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
                     ...command.limitRecovery,
                     autoResume:
                       command.limitRecovery.autoResume ?? previousRecovery?.autoResume ?? false,
-                    snooze: command.limitRecovery.snooze ?? previousRecovery?.snooze ?? false,
+                    snooze:
+                      !isTopLevelBot(thread) &&
+                      (command.limitRecovery.snooze ?? previousRecovery?.snooze ?? false),
                     requestId: command.commandId,
                   };
           return {
@@ -12275,12 +12282,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
     const thread = yield* projectionStore
       .getThread(command.threadId)
       .pipe(mapDispatchError(command));
-    // Subagent children copy their parent's fields, botConfig included, but are not Bots.
-    if (
-      thread.botConfig == null ||
-      thread.lineage.parentThreadId !== null ||
-      thread.deletedAt !== null
-    ) {
+    if (!isLiveTopLevelBot(thread)) {
       return;
     }
     const { request, item, node } = yield* projectionStore
@@ -16373,7 +16375,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
               (cause) => new OrchestratorProjectionError({ threadId: command.threadId, cause }),
             ),
           );
-        if (thread.botConfig != null) break;
+        if (isTopLevelBot(thread)) break;
         if (
           thread.settledOverride !== null ||
           DateTime.toEpochMillis(thread.updatedAt) > DateTime.toEpochMillis(command.snapshotAt)
