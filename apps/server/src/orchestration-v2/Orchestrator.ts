@@ -229,6 +229,7 @@ import {
 import { planThreadDeletion } from "./ThreadDeletion.ts";
 import type * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 import * as ServerSettings from "../serverSettings.ts";
+import { BOT_RELEASED_QUESTION_ANSWER } from "../bots/botInstructions.ts";
 
 const isMessageQuestionAnswer = Schema.is(
   Schema.Union([TrimmedNonEmptyString, Schema.NonEmptyArray(TrimmedNonEmptyString)]),
@@ -700,6 +701,7 @@ function commandThreadId(command: OrchestrationV2ServerCommand): ThreadId {
     case "queued-run.edit":
     case "runtime-request.respond":
     case "runtime-request.delivery.fail":
+    case "runtime-request.release-to-message":
     case "thread.user-input.dismiss":
     case "checkpoint.rollback":
     case "checkpoint.rollback.fail":
@@ -846,6 +848,22 @@ function metadataUpdateContinuation(
         createdBy: "agent",
         creationSource: "mcp",
       };
+}
+
+const ORGANIZE_ONLY_METADATA_KEYS: ReadonlySet<string> = new Set([
+  "type",
+  "commandId",
+  "threadId",
+  "groupedUnderThreadId",
+  "botMuteChildren",
+]);
+
+function isOrganizeOnlyMetadataUpdate(
+  command: Extract<OrchestrationV2Command, { readonly type: "thread.metadata.update" }>,
+): boolean {
+  return Object.entries(command).every(
+    ([key, value]) => value === undefined || ORGANIZE_ONLY_METADATA_KEYS.has(key),
+  );
 }
 
 // A later command for the first message would leave the new thread committed with no run,
@@ -4138,6 +4156,31 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       { concurrency: 1, discard: true },
     );
 
+  // Best effort: a launch never fails over its group, so an unusable leader drops the grouping.
+  const resolveCreatedThreadGroupLeader = Effect.fn(
+    "orchestrationV2.dispatch.resolveCreatedThreadGroupLeader",
+  )(function* (requestedId: ThreadId, projectId: ProjectId) {
+    const requested = yield* findThread(requestedId);
+    const root =
+      requested === null || requested.lineage.parentThreadId === null
+        ? requested
+        : yield* findThread(requested.lineage.rootThreadId);
+    if (root === null || root.lineage.parentThreadId !== null) return null;
+    const leader =
+      root.groupedUnderThreadId == null ? root : yield* findThread(root.groupedUnderThreadId);
+    if (
+      leader === null ||
+      leader.deletedAt !== null ||
+      // A Bot's workers may work in any project.
+      (leader.projectId !== projectId && leader.botConfig == null) ||
+      leader.lineage.parentThreadId !== null ||
+      leader.groupedUnderThreadId != null
+    ) {
+      return null;
+    }
+    return leader.id;
+  });
+
   const dispatchThreadCreate = Effect.fn("orchestrationV2.dispatch.threadCreate")(function* (
     command: Extract<OrchestrationV2Command, { readonly type: "thread.create" }>,
     events: Ref.Ref<Array<OrchestrationV2DomainEvent>>,
@@ -4160,6 +4203,10 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
 
     const now = yield* DateTime.now;
     const emitEvent = emit(events, command);
+    const groupedUnderThreadId =
+      command.groupedUnderThreadId === undefined || command.botConfig !== undefined
+        ? null
+        : yield* resolveCreatedThreadGroupLeader(command.groupedUnderThreadId, command.projectId);
     const thread: OrchestrationV2AppThread = {
       createdBy: command.createdBy,
       creationSource: command.creationSource,
@@ -4181,6 +4228,8 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         ? {}
         : { delegatedFrom: command.delegatedFrom }),
       ...(command.workflowRun === undefined ? {} : { workflowRun: command.workflowRun }),
+      ...(groupedUnderThreadId === null ? {} : { groupedUnderThreadId }),
+      ...(command.botConfig === undefined ? {} : { botConfig: command.botConfig }),
       lineage: {
         parentThreadId: null,
         relationshipToParent: null,
@@ -4634,6 +4683,53 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
           commandType: command.type,
           cause: `Thread ${command.threadId} is no longer empty.`,
         });
+    }
+    if (command.type === "thread.metadata.update") {
+      const refuse = (cause: string) =>
+        new OrchestratorDispatchError({
+          commandId: command.commandId,
+          commandType: command.type,
+          cause,
+        });
+      if (command.botMuteChildren !== undefined && thread.botConfig == null) {
+        return yield* refuse(`Thread ${command.threadId} is not a Bot.`);
+      }
+      const leaderId = command.groupedUnderThreadId;
+      if (leaderId != null && leaderId !== thread.groupedUnderThreadId) {
+        if (leaderId === command.threadId) {
+          return yield* refuse(`Thread ${command.threadId} cannot be grouped under itself.`);
+        }
+        if (thread.lineage.parentThreadId !== null) {
+          return yield* refuse(
+            `Thread ${command.threadId} is not a top-level thread, so it cannot be grouped.`,
+          );
+        }
+        if (thread.botConfig != null) {
+          return yield* refuse(`Thread ${command.threadId} is a Bot; a Bot is never a worker.`);
+        }
+        const leader = yield* projectionStore.findThread(leaderId).pipe(mapDispatchError(command));
+        if (leader === null || leader.deletedAt !== null) {
+          return yield* refuse(
+            `Thread ${leaderId} does not exist, so nothing can be grouped under it.`,
+          );
+        }
+        // Groups stay one level deep: a leader is never a worker, and a worker never leads.
+        if (leader.lineage.parentThreadId !== null || leader.groupedUnderThreadId != null) {
+          return yield* refuse(`Thread ${leaderId} is not a top-level group leader.`);
+        }
+        if (leader.projectId !== thread.projectId && leader.botConfig == null) {
+          return yield* refuse(`Thread ${leaderId} is in another project.`);
+        }
+        if (
+          (yield* projectionStore
+            .listGroupedWorkerIds(command.threadId)
+            .pipe(mapDispatchError(command))).length > 0
+        ) {
+          return yield* refuse(
+            `Thread ${command.threadId} leads a group; ungroup its workers first.`,
+          );
+        }
+      }
     }
     if (command.type === "thread.archive" && thread.archivedAt !== null) {
       return yield* new OrchestratorDispatchError({
@@ -5322,7 +5418,14 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
               : command.regenerateTitle === false || command.title !== undefined
                 ? { titleRegeneration: null }
                 : {}),
-            updatedAt: now,
+            ...(command.groupedUnderThreadId === undefined
+              ? {}
+              : { groupedUnderThreadId: command.groupedUnderThreadId }),
+            ...(command.botMuteChildren === undefined || thread.botConfig == null
+              ? {}
+              : { botConfig: { ...thread.botConfig, muteChildren: command.botMuteChildren } }),
+            // Grouping and worker muting arrange the sidebar; they are not activity on the thread.
+            updatedAt: isOrganizeOnlyMetadataUpdate(command) ? thread.updatedAt : now,
           };
         }
         case "thread.pull-request.link":
@@ -12147,6 +12250,84 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
     });
   });
 
+  /**
+   * Turns a Bot's blocking question into a message question: the provider is answered at once so
+   * the turn ends, and the question stays pending until the user's next message or a dismiss.
+   * Anything else, including a question that is not ready yet, is left as it is.
+   */
+  const dispatchRuntimeRequestReleaseToMessage = Effect.fn(
+    "Orchestrator.dispatchRuntimeRequestReleaseToMessage",
+  )(function* (
+    command: Extract<
+      OrchestrationV2InternalCommand,
+      { readonly type: "runtime-request.release-to-message" }
+    >,
+    events: Ref.Ref<Array<OrchestrationV2DomainEvent>>,
+    effects: Ref.Ref<Array<PendingOrchestrationEffectV2>>,
+  ) {
+    const thread = yield* projectionStore
+      .getThread(command.threadId)
+      .pipe(mapDispatchError(command));
+    // Subagent children copy their parent's fields, botConfig included, but are not Bots.
+    if (
+      thread.botConfig == null ||
+      thread.lineage.parentThreadId !== null ||
+      thread.deletedAt !== null
+    ) {
+      return;
+    }
+    const { request, item, node } = yield* projectionStore
+      .getRuntimeResponseContext(command.threadId, command.requestId)
+      .pipe(mapDispatchError(command));
+    if (
+      request?.kind !== "user_input" ||
+      request.status !== "pending" ||
+      request.responseCapability.type !== "live" ||
+      item?.type !== "user_input_request"
+    ) {
+      return;
+    }
+    const { providerSessionId } = request.responseCapability;
+    const now = yield* DateTime.now;
+    const emitEvent = emit(events, command);
+    const runId = node?.runId ?? item.runId;
+    yield* emitEvent({
+      type: "runtime-request.updated",
+      threadId: command.threadId,
+      ...(runId == null ? {} : { runId }),
+      nodeId: request.nodeId,
+      providerInstanceId: thread.providerInstanceId,
+      occurredAt: now,
+      payload: { ...request, responseCapability: { type: "message" } },
+    });
+    yield* emitEvent({
+      type: "turn-item.updated",
+      threadId: command.threadId,
+      ...(item.runId === null ? {} : { runId: item.runId }),
+      ...(item.nodeId === null ? {} : { nodeId: item.nodeId }),
+      providerInstanceId: thread.providerInstanceId,
+      occurredAt: now,
+      payload: { ...item, responseMode: "message", updatedAt: now },
+    });
+    yield* Ref.update(effects, (existing) => [
+      ...existing,
+      {
+        id: `effect:${command.commandId}:runtime-request.respond:${command.requestId}`,
+        commandId: command.commandId,
+        threadId: command.threadId,
+        request: {
+          type: "runtime-request.respond",
+          providerSessionId,
+          requestId: command.requestId,
+          answers: Object.fromEntries(
+            item.questions.map((question) => [question.id, BOT_RELEASED_QUESTION_ANSWER]),
+          ),
+          releasedToMessage: true,
+        },
+      } satisfies PendingOrchestrationEffectV2,
+    ]);
+  });
+
   const dispatchThreadUserInputDismiss = Effect.fn("Orchestrator.dispatchThreadUserInputDismiss")(
     function* (
       command: Extract<OrchestrationV2Command, { readonly type: "thread.user-input.dismiss" }>,
@@ -16543,6 +16724,9 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       case "runtime-request.delivery.fail":
         yield* dispatchRuntimeRequestDeliveryFail(command, events);
         break;
+      case "runtime-request.release-to-message":
+        yield* dispatchRuntimeRequestReleaseToMessage(command, events, effects);
+        break;
       case "thread.background-work.settle":
         yield* dispatchBackgroundWorkSettle(command, events, effects);
         break;
@@ -16720,6 +16904,8 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
           // A read can answer a watch again before a push's reopen lands; nothing is left to clear.
           command.type === "thread.pull-request-watch.checks-reopen" ||
           command.type === "thread.interrupt.unresponsive" ||
+          // Only a Bot's still-blocking question is released.
+          command.type === "runtime-request.release-to-message" ||
           command.type === "thread.stop" ||
           command.type === "subagent.stop" ||
           // Closing a share again, or after it ended, is not an error.

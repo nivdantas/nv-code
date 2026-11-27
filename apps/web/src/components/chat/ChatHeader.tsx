@@ -43,6 +43,8 @@ import { observeResize } from "~/lib/observeResize";
 import { cn } from "~/lib/utils";
 import { textDirection } from "~/textDirection";
 import { useClientSettings } from "../../hooks/useSettings";
+import { useQuietThreadShell } from "../../state/entities";
+import { BotHeaderAvatar } from "../bot/BotHeaderAvatar";
 import { GuestShareIndicator } from "./GuestShareControls";
 import { SharedTooltipTrigger } from "../ui/shared-tooltip";
 
@@ -92,6 +94,8 @@ export const ChatHeader = memo(function ChatHeader({
   const breadcrumbContainerRef = useRef<HTMLDivElement>(null);
   const [collapseParentTitle, setCollapseParentTitle] = useState(false);
   const activeThreadRef = scopeThreadRef(activeThreadEnvironmentId, activeThreadId);
+  // A Bot works across projects, so its header names the Bot instead of its scratch folder.
+  const isBot = useQuietThreadShell(isServerThread ? activeThreadRef : null)?.botConfig != null;
   const canOperateThread = useEnvironmentScope(
     activeThreadEnvironmentId,
     AuthOrchestrationOperateScope,
@@ -263,7 +267,7 @@ export const ChatHeader = memo(function ChatHeader({
         ariaLabel={gt("Thread breadcrumb")}
         className="flex-1 overflow-clip [overflow-clip-margin:2px]"
       >
-        {activeProject ? (
+        {activeProject && !isBot ? (
           <>
             <WorkspaceBreadcrumbItem className="shrink">
               <SharedTooltipTrigger
@@ -332,6 +336,7 @@ export const ChatHeader = memo(function ChatHeader({
           </>
         ) : null}
         <WorkspaceBreadcrumbItem current className="min-w-10 flex-1">
+          {isBot ? <BotHeaderAvatar threadRef={activeThreadRef} /> : null}
           {renamingTitle !== null ? (
             <input
               autoFocus

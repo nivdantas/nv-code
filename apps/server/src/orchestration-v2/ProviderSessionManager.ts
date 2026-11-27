@@ -640,9 +640,12 @@ export const layerWithOptions = (
                 if (Option.getOrElse(backgroundWait, () => false)) {
                   capabilities.add("background-wait");
                 }
-                const subagent = yield* projectionStore.getThread(threadId).pipe(
-                  Effect.map((thread) => thread.lineage.relationshipToParent === "subagent"),
-                  Effect.orElseSucceed(() => false),
+                const { subagent, bot } = yield* projectionStore.getThread(threadId).pipe(
+                  Effect.map((thread) => ({
+                    subagent: thread.lineage.relationshipToParent === "subagent",
+                    bot: thread.botConfig != null,
+                  })),
+                  Effect.orElseSucceed(() => ({ subagent: false, bot: false })),
                 );
                 const existing = yield* mcpSessions.read(threadId);
                 if (existing !== undefined) {
@@ -669,7 +672,8 @@ export const layerWithOptions = (
                     (Option.isNone(backgroundWait) ||
                       resolved.capabilities.has("background-wait") === backgroundWait.value) &&
                     // A credential issued while the lineage read failed is replaced once it works.
-                    (resolved.thread.subagent === true) === subagent
+                    (resolved.thread.subagent === true) === subagent &&
+                    (resolved.thread.bot === true) === bot
                   ) {
                     return { mcpCredentialId: existing.providerSessionId, issued: false };
                   }
@@ -682,6 +686,7 @@ export const layerWithOptions = (
                   browserToolsAvailable,
                   capabilities,
                   subagent,
+                  bot,
                 });
                 yield* mcpSessions.set({
                   ...credential.config,

@@ -54,6 +54,11 @@ import { useCopyToClipboard } from "./useCopyToClipboard";
 import { useNewThreadHandler } from "./useHandleNewThread";
 import { useClientSettings } from "./useSettings";
 import { canTurnThreadIntoProject, useThreadActions } from "./useThreadActions";
+import {
+  isThreadGroupingAction,
+  threadGroupingMenuState,
+  useThreadGroupingActions,
+} from "./useThreadGroupingActions";
 
 function failureToast(title: string, error: unknown) {
   toastManager.add(
@@ -100,6 +105,7 @@ export function useThreadActionMenu(input: {
     reportFailure: false,
   });
   const handleNewThread = useNewThreadHandler();
+  const groupingActions = useThreadGroupingActions();
   const confirmThreadDelete = useClientSettings((s) => s.confirmThreadDelete);
   const confirmThreadArchive = useClientSettings((s) => s.confirmThreadArchive);
   const timestampFormat = useClientSettings((s) => s.timestampFormat);
@@ -153,6 +159,7 @@ export function useThreadActionMenu(input: {
       snoozePresets,
       canShareWithGuest,
       canTurnIntoProject: canTurnThreadIntoProject(threadRef),
+      grouping: threadGroupingMenuState(thread),
     });
     const run = async (action: ThreadActionMenuId) => {
       const api = readLocalApi();
@@ -195,6 +202,10 @@ export function useThreadActionMenu(input: {
           failureToast(title, squashAtomCommandFailure(result));
         }
       };
+      if (isThreadGroupingAction(action)) {
+        await groupingActions.run(action, threadRef);
+        return;
+      }
       switch (action) {
         case "find":
           onFind?.(threadRef);

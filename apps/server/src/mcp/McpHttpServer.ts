@@ -106,6 +106,8 @@ import * as WorktreeMcpService from "./WorktreeMcpService.ts";
 import * as PullRequestsHandlers from "./toolkits/pullRequests/handlers.ts";
 import * as ToolSearchHandlers from "./toolkits/toolSearch/handlers.ts";
 import { ToolSearchToolkit } from "./toolkits/toolSearch/tools.ts";
+import { BOT_TOOL_PREFIX, BotToolkit } from "./toolkits/bot/tools.ts";
+import * as BotHandlers from "./toolkits/bot/handlers.ts";
 import { PullRequestsToolkit } from "./toolkits/pullRequests/tools.ts";
 import * as IssuesHandlers from "./toolkits/issues/handlers.ts";
 import { IssuesToolkit } from "./toolkits/issues/tools.ts";
@@ -1796,7 +1798,10 @@ const layerDeferredListing = McpServer.visibility(
       if (mode === undefined || providerSessionId === undefined) {
         return target !== McpToolExposure.TOOL_SEARCH && target !== McpToolExposure.TOOL_CALL;
       }
-      return exposure.isListed(providerSessionId, target, mode);
+      // Their EnabledWhen decides who sees these; a Bot lists them without searching.
+      return (
+        target.startsWith(BOT_TOOL_PREFIX) || exposure.isListed(providerSessionId, target, mode)
+      );
     });
   }),
   { global: true },
@@ -1808,6 +1813,9 @@ export const layerToolSearch = Layer.mergeAll(
   Layer.effectDiscard(registerToolCall()),
   layerDeferredListing,
 ).pipe(Layer.provide(layerToolExposure));
+
+/** Outside layerTools: only Bot threads list these, so ordinary threads pay nothing for them. */
+export const layerBotTools = toolkitRegistration(BotToolkit, BotHandlers.layer);
 
 /**
  * A webhook subscription belongs to the outside client's session. Its id is the same for the
@@ -1871,5 +1879,5 @@ export const layerMilestoneEvents = Layer.effectDiscard(
 );
 
 export const layer = layerMcpTransport(
-  Layer.mergeAll(layerTools, layerToolSearch, layerMilestoneEvents),
+  Layer.mergeAll(layerTools, layerToolSearch, layerBotTools, layerMilestoneEvents),
 );

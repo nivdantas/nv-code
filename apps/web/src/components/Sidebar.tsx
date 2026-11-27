@@ -37,6 +37,11 @@ import {
   createInboxReturnTracker,
   isThreadWorking,
 } from "@t3tools/client-runtime/state/thread-inbox";
+import {
+  type BotGroups,
+  groupBots,
+  groupThreads,
+} from "@t3tools/client-runtime/state/thread-grouping";
 import { activeThreadSortKey, sortSettledThreads } from "@t3tools/client-runtime/state/thread-sort";
 import {
   nextShownOrder,
@@ -77,6 +82,7 @@ import {
   SettingsIcon,
 } from "lucide-react";
 import {
+  Fragment,
   useEffect,
   useLayoutEffect,
   useReducer,
@@ -130,6 +136,12 @@ import {
   useAcknowledgeThreadWoke,
   useThreadActions,
 } from "../hooks/useThreadActions";
+import {
+  isThreadGroupingAction,
+  resolveBulkGroupLeader,
+  threadGroupingMenuState,
+  useThreadGroupingActions,
+} from "../hooks/useThreadGroupingActions";
 import { useHandleNewThread } from "../hooks/useHandleNewThread";
 import { useOrderWhileOpen } from "../hooks/useOrderWhileOpen";
 import { useProjectPin } from "../hooks/useProjectGroupUpdate";
@@ -289,6 +301,8 @@ import {
   useDraftTerminalLabels,
   useSidebarDrafts,
 } from "./sidebar/SidebarDraftBlock";
+import { SidebarBotBlock } from "./sidebar/SidebarBotBlock";
+import { SidebarWorkersBlock } from "./sidebar/SidebarWorkersBlock";
 import {
   SidebarProjectFolderHeader,
   sidebarFolderRowId,
@@ -357,6 +371,9 @@ const SETTLED_TAIL_PAGE_COUNT = 25;
 const SETTLED_SHELF_EXPANDED_KEY = "t3code:sidebar:settled-expanded";
 const SNOOZED_SHELF_EXPANDED_KEY = "t3code:sidebar:snoozed-expanded";
 const WORKING_SHELF_EXPANDED_KEY = "t3code:sidebar:working-expanded";
+// Explicit fold choices by leader key; a group without one folds when its Bot mutes workers.
+const WORKER_FOLDS_KEY = "t3code:sidebar:worker-folds";
+const WorkerFolds = Schema.Record(Schema.String, Schema.Boolean);
 
 const inboxReturns = createInboxReturnTracker();
 
@@ -373,6 +390,8 @@ type SidebarOptimisticDrop = {
 
 interface SidebarThreadPartitionInput {
   readonly threads: readonly EnvironmentThreadShell[];
+  /** Listed as Bot rows above the threads; their workers are reached from the Bot. */
+  readonly botGroups: BotGroups<EnvironmentThreadShell>;
   readonly scopedProjectKeys: ReadonlySet<string> | null;
   /** Tasks linked environments run for a listed thread; they show under it. */
   readonly delegatedUnderParent: ReadonlySet<string>;
@@ -445,6 +464,7 @@ function useSidebarThreads(input: {
   readonly connectedEnvironmentIds: readonly EnvironmentId[];
   readonly optimisticDrop: SidebarOptimisticDrop | null;
   readonly threads: readonly EnvironmentThreadShell[];
+  readonly botGroups: BotGroups<EnvironmentThreadShell>;
   readonly delegatedUnderParent: ReadonlySet<string>;
   readonly routeRowThreadKey: string | null;
   readonly departingThreadKey: string | null;
@@ -460,6 +480,7 @@ function useSidebarThreads(input: {
     connectedEnvironmentIds,
     optimisticDrop,
     threads,
+    botGroups,
     delegatedUnderParent,
     routeRowThreadKey,
     departingThreadKey,
@@ -492,6 +513,7 @@ function useSidebarThreads(input: {
     false,
     Schema.Boolean,
   );
+  const [workerFolds, setWorkerFolds] = useLocalStorage(WORKER_FOLDS_KEY, {}, WorkerFolds);
   // Shared with the old per-project sidebar, so folders keep their open state.
   const projectExpandedById = useUiStateStore((store) => store.projectExpandedById);
   const setProjectExpanded = useUiStateStore((store) => store.setProjectExpanded);
@@ -507,6 +529,7 @@ function useSidebarThreads(input: {
 
   const partition = partitionSidebarThreads({
     threads,
+    botGroups,
     scopedProjectKeys,
     delegatedUnderParent,
     serverConfigs,
@@ -600,7 +623,18 @@ function useSidebarThreads(input: {
       ...workingThreads,
       ...snoozedThreads,
       ...settledThreads,
+      ...[...partition.workerGroups.values()].flatMap((group) => group.workers),
+      ...botGroups.bots,
+      ...[...botGroups.boardByBotKey.values()].flatMap((board) => [
+        ...board.needsYou,
+        ...board.working,
+        ...board.done,
+      ]),
     ],
+    isWorkersFolded: (leaderKey: string) =>
+      workerFolds[leaderKey] ?? partition.workerGroups.get(leaderKey)?.muted === true,
+    toggleWorkersFold: (leaderKey: string, folded: boolean) =>
+      setWorkerFolds((current) => ({ ...current, [leaderKey]: !folded })),
     settledVisibleCount,
     settledCount,
     olderSettledShelf,
@@ -646,6 +680,7 @@ function useSidebarThreads(input: {
 function partitionSidebarThreads(input: SidebarThreadPartitionInput) {
   const {
     threads,
+    botGroups,
     scopedProjectKeys,
     delegatedUnderParent,
     serverConfigs,
@@ -654,7 +689,12 @@ function partitionSidebarThreads(input: SidebarThreadPartitionInput) {
     sortActiveBySend,
   } = input;
   const preciseNow = new Date().toISOString();
-  const visible = filterSidebarV2VisibleThreads(threads, scopedProjectKeys, delegatedUnderParent);
+  const visible = filterSidebarV2VisibleThreads(
+    threads,
+    scopedProjectKeys,
+    delegatedUnderParent,
+  ).filter((thread) => !botGroups.botAndWorkerKeys.has(threadShellKey(thread)));
+  const grouping = groupThreads(visible);
   const inboxObservation = inboxReturns.observe(workingShelfEnabled ? threads : null);
   const pinned: EnvironmentThreadShell[] = [];
   const active: EnvironmentThreadShell[] = [];
@@ -671,9 +711,11 @@ function partitionSidebarThreads(input: SidebarThreadPartitionInput) {
     serverConfigs,
     connectedEnvironmentIds: input.connectedEnvironmentIds,
   });
-  for (const thread of visible) {
+  for (const thread of grouping.listed) {
     const configLoaded = serverConfigs.has(thread.environmentId);
     const threadKey = scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id));
+    // Workers at work keep their group in view, even when the leader itself is settled or snoozed.
+    const workersLive = grouping.groupByLeaderKey.get(threadKey)?.live === true;
     if (optimisticDrop?.key === threadKey) {
       const projected = applySidebarThreadDrop(
         thread,
@@ -693,8 +735,8 @@ function partitionSidebarThreads(input: SidebarThreadPartitionInput) {
       );
     } else {
       const section = resolveSidebarThreadSection({
-        snoozed: configLoaded && effectiveSnoozed(thread, { now: preciseNow }),
-        settled: configLoaded && thread.settledOverride === "settled",
+        snoozed: !workersLive && configLoaded && effectiveSnoozed(thread, { now: preciseNow }),
+        settled: !workersLive && configLoaded && thread.settledOverride === "settled",
         pinned: thread.pinnedAt != null,
       });
       (section === "snoozed"
@@ -741,6 +783,7 @@ function partitionSidebarThreads(input: SidebarThreadPartitionInput) {
     ),
     settledThreads: sortSettledThreads(settled),
     visibleThreads: visible,
+    workerGroups: grouping.groupByLeaderKey,
     snoozeNow: preciseNow,
   };
 }
@@ -1022,6 +1065,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   const newThreadContext = useHandleNewThread();
   // Row callbacks capture only the handler; the rest of the context changes with the route.
   const { handleNewThread } = newThreadContext;
+  const groupingActions = useThreadGroupingActions();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const clearSelection = useThreadSelectionStore((s) => s.clearSelection);
   const toggleThreadSelection = useThreadSelectionStore((s) => s.toggleThread);
@@ -1150,6 +1194,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
             ? asLaunchingThread(thread)
             : thread,
         );
+  const botGroups = groupBots(listedThreads);
   const routeRowThreadKey =
     routeThreadRef === null
       ? null
@@ -1170,7 +1215,11 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     isSearching: isSearchingThreads,
     scopedProjectKeys: chosenScopeProjectKeys,
     delegatedUnderParent,
-    findThread: (key) => threads.find((candidate) => threadShellKey(candidate) === key),
+    // Bots list whatever the scope, and their workers are not listed at all.
+    findThread: (key) =>
+      botGroups.botAndWorkerKeys.has(key)
+        ? undefined
+        : threads.find((candidate) => threadShellKey(candidate) === key),
   });
   const revealWidensScope = activeProfile === null && routeWidensScope;
   const projectScopeKeys = revealWidensScope ? [] : chosenProjectScopeKeys;
@@ -1381,6 +1430,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     visibleWorkingThreads,
     orderedThreadKeys,
     threadByKey,
+    workerGroups,
+    isWorkersFolded,
+    toggleWorkersFold,
     settledThreadKeys,
     snoozedThreadKeys,
     sectionByThreadKey,
@@ -1395,6 +1447,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     connectedEnvironmentIds,
     optimisticDrop,
     threads: listedThreads,
+    botGroups,
     delegatedUnderParent,
     routeRowThreadKey,
     departingThreadKey,
@@ -2419,6 +2472,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         (thread) =>
           canMarkLatestRunUnread(thread.latestRun) && threadRuntimeCanArchive(thread.runtime),
       );
+      const groupLeader = resolveBulkGroupLeader(selectedThreads);
       // Presets sync across environments, so the first selected thread's stand for all.
       const menuOpenedAt = new Date();
       const snoozePresets = resolveSnoozePresets(
@@ -2467,6 +2521,15 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                     disabled:
                       titleRegenerationMenuItem.disabled ||
                       !canOperateThreads(regeneratableTitleThreads),
+                  },
+                ]
+              : []),
+            ...(groupLeader
+              ? [
+                  {
+                    id: "group",
+                    label: gt("Group under {title}", { title: groupLeader.title }),
+                    disabled: !canOperateThreads(selectedThreads),
                   },
                 ]
               : []),
@@ -2553,6 +2616,14 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
             );
           }
         }
+        return;
+      }
+      if (clicked.value === "group" && groupLeader) {
+        clearSelection();
+        await groupingActions.groupUnder(
+          scopeThreadRef(groupLeader.environmentId, groupLeader.id),
+          selectedThreads.map((thread) => scopeThreadRef(thread.environmentId, thread.id)),
+        );
         return;
       }
       if (clicked.value === "unpin") {
@@ -2781,6 +2852,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               canTurnIntoProject: canTurnThreadIntoProject(threadRef),
               canRename: !fromSearch,
               isBot: bot.isBot,
+              grouping: threadGroupingMenuState(thread),
               supports: {
                 settlement: configLoaded,
                 autoSettleOptOut: supportsAutoSettleOptOut,
@@ -2800,6 +2872,10 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           !checkThreadOperations([thread], isThreadTriageAction(clicked.value))
         )
           return;
+        if (isThreadGroupingAction(clicked.value)) {
+          await groupingActions.run(clicked.value, threadRef);
+          return;
+        }
         if (clicked.value?.startsWith("snooze:")) {
           const preset =
             clicked.value === "snooze:custom"
@@ -3392,6 +3468,14 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         }
       >
         <SidebarGroup className="flex-1" role="presentation">
+          {isSearchingThreads ? null : (
+            <SidebarBotBlock
+              botGroups={botGroups}
+              routeThreadKey={routeThreadKey}
+              onNavigate={navigateToThread}
+              onContextMenu={handleThreadContextMenu}
+            />
+          )}
           {isSearchingThreads ? (
             threadSearchResults.length > 0 ? (
               <DndContext
@@ -3566,7 +3650,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                         : isCard
                           ? "card"
                           : "slim";
-                      return (
+                      const row = (
                         <SortableThreadRow
                           key={threadKey}
                           sortableId={threadKey}
@@ -3654,6 +3738,22 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                           onAcknowledgeWoke={acknowledgeWoke}
                           onFileDropThreads={handleThreadFileDrop}
                         />
+                      );
+                      const workerGroup = workerGroups.get(threadKey);
+                      if (workerGroup === undefined) return row;
+                      return (
+                        <Fragment key={threadKey}>
+                          {row}
+                          <SidebarWorkersBlock
+                            leaderKey={threadKey}
+                            group={workerGroup}
+                            folded={isWorkersFolded(threadKey)}
+                            routeThreadKey={routeThreadKey}
+                            onToggle={toggleWorkersFold}
+                            onNavigate={navigateToThread}
+                            onContextMenu={handleThreadContextMenu}
+                          />
+                        </Fragment>
                       );
                     };
                     const from = isContextDrag ? null : (dragState?.activeSection ?? null);

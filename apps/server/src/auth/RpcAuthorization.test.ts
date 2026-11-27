@@ -97,6 +97,20 @@ describe("RPC authorization scopes", () => {
     );
   });
 
+  it("lets readers see a Bot's memory but only operators change it or start Bots", () => {
+    expect(requiredScopeForRpcMethod(WS_METHODS.botFilesRead)).toBe(AuthOrchestrationReadScope);
+    expect(requiredScopeForRpcMethod(WS_METHODS.botNoteRead)).toBe(AuthOrchestrationReadScope);
+    for (const method of [
+      WS_METHODS.botFilesWrite,
+      WS_METHODS.botNoteWrite,
+      WS_METHODS.botNoteDelete,
+      WS_METHODS.botStart,
+      WS_METHODS.botCreate,
+    ]) {
+      expect(requiredScopeForRpcMethod(method)).toBe(AuthOrchestrationOperateScope);
+    }
+  });
+
   it("still lets readers load settings the way installed Swift clients ask", () => {
     expect(requiredScopeForRpcMethod("server.getSettings")).toBe(AuthOrchestrationReadScope);
   });

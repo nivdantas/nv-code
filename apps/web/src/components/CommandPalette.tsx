@@ -86,7 +86,9 @@ import {
   TextSearchIcon,
   UserPlusIcon,
   WorkflowIcon,
+  BotIcon,
 } from "lucide-react";
+import { useThreadGroupingActions } from "../hooks/useThreadGroupingActions";
 import { openThreadFind } from "./chat/threadFindStore";
 import { opSessionCommandItem } from "~/nv/opSession/opSessionCommand";
 import { OP_SESSION_SETTINGS_PATH } from "~/nv/opSession/opSessionNavigation";
@@ -129,6 +131,7 @@ import { desktopLocalBackendId } from "../connection/desktopLocal";
 import { filesystemEnvironment, useFilesystemReadAccess } from "../state/filesystem";
 import { projectEnvironment } from "../state/projects";
 import { useEnvironmentQuery } from "../state/query";
+import { botFilesEnvironment } from "../state/botFiles";
 import { serverEnvironment } from "../state/server";
 import { threadEnvironment } from "../state/threads";
 import { readEnvironmentScope, useEnvironmentScope } from "~/state/session";
@@ -282,6 +285,7 @@ import { openLinkPullRequestDialog } from "./pullRequest/LinkPullRequestDialog";
 import { canShareWithGuestAtom } from "./chat/guestShareAvailability";
 import { openGuestShareDialog } from "./chat/guestShareDialogState";
 import { openUseInAnotherApp } from "./mcp/UseInAnotherAppDialog";
+import { openNewBotDialog } from "./chat/NewBotDialog";
 import { ProjectContentSearchDialog } from "./search/ProjectContentSearchDialog";
 import { primaryServerKeybindingsAtom } from "../state/server";
 import { resolveShortcutCommand, threadJumpIndexFromCommand } from "../keybindings";
@@ -448,6 +452,7 @@ function OpenCommandPaletteDialog(props: {
   readonly initialContext: CommandPaletteReturnContext | undefined;
 }) {
   const gt = useGT();
+  const groupingActions = useThreadGroupingActions();
   const messages = useMessages();
   const navigate = useNavigate();
   const pathname = useLocation({ select: (location) => location.pathname });
@@ -780,6 +785,9 @@ function OpenCommandPaletteDialog(props: {
       .map((environment) => environment.environmentId),
     supportsTriage,
   });
+  const canCreateBot = useAtomValue(
+    botFilesEnvironment.create.permissionAtom(scratchTargetEnvironmentId),
+  );
   const canTriage =
     useAtomValue(serverEnvironment.prepareTriage.permissionAtom(triageEnvironmentId)) &&
     supportsTriage(triageEnvironmentId);
@@ -1541,6 +1549,35 @@ function OpenCommandPaletteDialog(props: {
       icon: <LinkIcon className={ITEM_ICON_CLASS} />,
       shortcutCommand: "thread.copyReference",
       run: copyActiveThreadReference,
+    });
+  }
+
+  if (scratchTargetEnvironmentId !== null && canCreateBot) {
+    const environmentId = scratchTargetEnvironmentId;
+    actionItems.push({
+      kind: "action",
+      value: "action:new-bot",
+      searchTerms: ["bot", "new bot", "coordinator", "workers", "chief of staff", "assistant"],
+      title: gt("New Bot"),
+      icon: <BotIcon className={ITEM_ICON_CLASS} />,
+      run: async () => {
+        openNewBotDialog(environmentId);
+      },
+    });
+  }
+
+  // The server refuses a thread a Bot cannot start from, such as a subagent.
+  if (activeThread != null && activeThread.botConfig == null) {
+    const threadRef = scopeThreadRef(activeThread.environmentId, activeThread.id);
+    actionItems.push({
+      kind: "action",
+      value: "action:start-bot",
+      searchTerms: ["bot", "coordinator", "workers", "delegate", "start a bot"],
+      title: gt("Start a Bot from this thread"),
+      icon: <BotIcon className={ITEM_ICON_CLASS} />,
+      run: async () => {
+        await groupingActions.startBot(threadRef);
+      },
     });
   }
 

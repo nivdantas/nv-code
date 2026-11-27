@@ -365,11 +365,24 @@ Errored samples are left out.
 
 Limits: the shell is simulated, so a CLI's output is the simulator's reading of the world and of the error texts the cases copy from real sessions. Polling never really waits, so these runs measure what polling decides, not the wall-clock time it takes. The simulator also sees the whole world, and early runs leaked it into invented files, such as an AGENTS.md naming `cafe` or a Forgejo API on git.cafe. The git.cafe worlds now rule both out. Read failing and passing transcripts before you trust a new case.
 
+## Bot cases
+
+`cases/bots.ndjson` runs a Bot thread (`setup.bot: true`). T3 lists the Bot tools and `t3_workflow` to it, and the eval appends `withBotInstructions` from `apps/server/src/bots/botInstructions.ts` to the prompt, as each Bot turn does.
+
+| Case                       | Kind  | What it checks                                                                                  |
+| -------------------------- | ----- | ----------------------------------------------------------------------------------------------- |
+| bot-bughunt-delegates      | bad   | A Bot asked for a bughunt launches a worker thread and runs no shell, read or edit tool itself. |
+| bot-status-reads-workers   | guard | A Bot asked how its workers are doing answers without new launches, shell, reads or edits.      |
+| bot-decision-asks-in-reply | bad   | A Bot told to ask before starting asks in its final reply, with no ask-user tool and no launch. |
+
+GPT-6 Luna, 3 samples, Terra shell, 2026-11-20: no Bot instructions (what Home on Claude got from its AGENTS.md) 0/3 and 0/3, both grepping the repo; Home's old AGENTS.md text appended to the turn 3/3 and 2/3; the current text 3/3 and 3/3.
+
 ## Where T3's text lives
 
 - `packages/provider-core/src/server/runtimeInstructions.ts`
 - `packages/provider-core/src/server/orchestrationInstructions.ts`
 - `apps/server/src/provider/CodexDeveloperInstructions.ts`
+- `apps/server/src/bots/botInstructions.ts` (what each Bot turn carries)
 - `apps/server/src/mcp/toolkits/*/tools.ts` (tool descriptions)
 - `packages/contracts/src/*Mcp.ts` (parameter descriptions and result text)
 

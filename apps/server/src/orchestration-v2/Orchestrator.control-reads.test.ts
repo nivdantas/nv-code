@@ -3479,3 +3479,100 @@ it.effect("a message waits for the worktree a launch is still preparing", () =>
     assert.lengthOf(projection.runs, 1);
   }).pipe(Effect.provide(Layer.mergeAll(layerTest, WorktreeSetupTracker.layer))),
 );
+
+it.effect("keeps thread groups one level deep without bumping activity", () =>
+  Effect.gen(function* () {
+    const orchestrator = yield* Orchestrator.OrchestratorV2;
+    const projections = yield* ProjectionStore.ProjectionStoreV2;
+    const projectId = ProjectId.make("project:groups");
+    const [leader, worker, other, launched, bot, elsewhere] = [
+      "leader",
+      "worker",
+      "other",
+      "launched",
+      "bot",
+      "elsewhere",
+    ].map((name) => ThreadId.make(`thread:group-${name}`)) as [
+      ThreadId,
+      ThreadId,
+      ThreadId,
+      ThreadId,
+      ThreadId,
+      ThreadId,
+    ];
+    const create = (
+      threadId: ThreadId,
+      options: {
+        readonly groupedUnderThreadId?: ThreadId;
+        readonly botConfig?: { readonly enabled: true; readonly muteChildren: boolean };
+        readonly projectId?: ProjectId;
+      } = {},
+    ) =>
+      orchestrator.dispatch({
+        type: "thread.create",
+        commandId: CommandId.make(`create:${threadId}`),
+        threadId,
+        projectId: options.projectId ?? projectId,
+        title: threadId,
+        modelSelection,
+        runtimeMode: "full-access",
+        interactionMode: "default",
+        branch: null,
+        worktreePath: null,
+        createdBy: "agent",
+        creationSource: "mcp",
+        ...(options.groupedUnderThreadId === undefined
+          ? {}
+          : { groupedUnderThreadId: options.groupedUnderThreadId }),
+        ...(options.botConfig === undefined ? {} : { botConfig: options.botConfig }),
+      });
+    const group = (threadId: ThreadId, groupedUnderThreadId: ThreadId | null, suffix = "") =>
+      orchestrator.dispatch({
+        type: "thread.metadata.update",
+        commandId: CommandId.make(`group:${threadId}:${groupedUnderThreadId}${suffix}`),
+        threadId,
+        groupedUnderThreadId,
+      });
+    yield* create(leader);
+    yield* create(worker);
+    yield* create(other);
+    yield* TestClock.adjust("1 minute");
+
+    assert.isTrue(Exit.isFailure(yield* Effect.exit(group(worker, worker))));
+    yield* group(worker, leader);
+    const grouped = yield* projections.getThread(worker);
+    assert.equal(grouped.groupedUnderThreadId, leader);
+    assert.deepEqual(grouped.updatedAt, grouped.createdAt);
+    // A worker never leads, and a leader is never a worker.
+    assert.isTrue(Exit.isFailure(yield* Effect.exit(group(other, worker))));
+    assert.isTrue(Exit.isFailure(yield* Effect.exit(group(leader, other))));
+
+    // A launch from a worker joins the worker's leader.
+    yield* create(launched, { groupedUnderThreadId: worker });
+    assert.equal((yield* projections.getThread(launched)).groupedUnderThreadId, leader);
+
+    // Workers of a Bot may work in another project; only a Bot's worker can be muted.
+    yield* create(bot, { botConfig: { enabled: true, muteChildren: false } });
+    yield* create(elsewhere, {
+      groupedUnderThreadId: bot,
+      projectId: ProjectId.make("project:elsewhere"),
+    });
+    assert.equal((yield* projections.getThread(elsewhere)).groupedUnderThreadId, bot);
+    assert.isTrue(Exit.isFailure(yield* Effect.exit(group(bot, leader))));
+    const mute = (threadId: ThreadId) =>
+      orchestrator.dispatch({
+        type: "thread.metadata.update",
+        commandId: CommandId.make(`mute:${threadId}`),
+        threadId,
+        botMuteChildren: true,
+      });
+    assert.isTrue(Exit.isFailure(yield* Effect.exit(mute(leader))));
+    yield* mute(bot);
+    const muted = yield* projections.getThread(bot);
+    assert.deepEqual(muted.botConfig, { enabled: true, muteChildren: true });
+    assert.deepEqual(muted.updatedAt, muted.createdAt);
+
+    yield* group(worker, null);
+    assert.isNull((yield* projections.getThread(worker)).groupedUnderThreadId);
+  }).pipe(Effect.provide(layerTest)),
+);

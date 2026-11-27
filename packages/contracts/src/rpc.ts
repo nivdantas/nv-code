@@ -197,6 +197,19 @@ import {
   ProviderUploadFeedbackInput,
   ProviderUploadFeedbackResult,
 } from "./provider.ts";
+import {
+  BotError,
+  BotFilesReadInput,
+  BotFilesReadResult,
+  BotNote,
+  BotNoteDeleteInput,
+  BotNoteReadInput,
+  BotNoteWriteInput,
+  BotPreferencesWriteInput,
+  BotCreateInput,
+  BotStartInput,
+  BotStartResult,
+} from "./bots.ts";
 import { ProviderInstanceId, ProviderInstanceMutation } from "./providerInstance.ts";
 import {
   IssueCandidates,
@@ -524,6 +537,14 @@ export const WS_METHODS = {
   mcpAppsToolInfo: "mcpApps.toolInfo",
   mcpAppsReadResource: "mcpApps.readResource",
   mcpAppsUpdateModelContext: "mcpApps.updateModelContext",
+
+  botFilesRead: "bot.files.read",
+  botFilesWrite: "bot.files.write",
+  botNoteRead: "bot.note.read",
+  botNoteWrite: "bot.note.write",
+  botNoteDelete: "bot.note.delete",
+  botStart: "bot.start",
+  botCreate: "bot.create",
 
   providerUploadFeedback: "provider.uploadFeedback",
   providerMcpSignInStart: "provider.mcpSignIn.start",
@@ -1837,6 +1858,45 @@ const WsMcpAppsReadResourceRpc = Rpc.make(WS_METHODS.mcpAppsReadResource, {
   error: Schema.Union([McpAppRequestError, EnvironmentAuthorizationError]),
 });
 
+const WsBotFilesReadRpc = Rpc.make(WS_METHODS.botFilesRead, {
+  payload: BotFilesReadInput,
+  success: BotFilesReadResult,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+});
+
+const WsBotFilesWriteRpc = Rpc.make(WS_METHODS.botFilesWrite, {
+  payload: BotPreferencesWriteInput,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+});
+
+const WsBotNoteReadRpc = Rpc.make(WS_METHODS.botNoteRead, {
+  payload: BotNoteReadInput,
+  success: BotNote,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+});
+
+const WsBotNoteWriteRpc = Rpc.make(WS_METHODS.botNoteWrite, {
+  payload: BotNoteWriteInput,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+});
+
+const WsBotNoteDeleteRpc = Rpc.make(WS_METHODS.botNoteDelete, {
+  payload: BotNoteDeleteInput,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+});
+
+const WsBotStartRpc = Rpc.make(WS_METHODS.botStart, {
+  payload: BotStartInput,
+  success: BotStartResult,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+});
+
+const WsBotCreateRpc = Rpc.make(WS_METHODS.botCreate, {
+  payload: BotCreateInput,
+  success: BotStartResult,
+  error: Schema.Union([BotError, EnvironmentAuthorizationError]),
+});
+
 const WsProviderUploadFeedbackRpc = Rpc.make(WS_METHODS.providerUploadFeedback, {
   payload: ProviderUploadFeedbackInput,
   success: ProviderUploadFeedbackResult,
@@ -2696,6 +2756,13 @@ export const WsRpcGroup = RpcGroup.make(
   WsMcpAppsToolInfoRpc,
   WsMcpAppsReadResourceRpc,
   WsMcpAppsUpdateModelContextRpc,
+  WsBotFilesReadRpc,
+  WsBotFilesWriteRpc,
+  WsBotNoteReadRpc,
+  WsBotNoteWriteRpc,
+  WsBotNoteDeleteRpc,
+  WsBotStartRpc,
+  WsBotCreateRpc,
   WsProviderUploadFeedbackRpc,
   WsProviderMcpSignInStartRpc,
   WsProviderMcpSignInCompleteRpc,

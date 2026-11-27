@@ -56,6 +56,12 @@ export const CLIENT_GUARDED_RPC_SCOPES = {
   // Writing a guide runs a model on this environment's providers, which reading one does not.
   [WS_METHODS.pullRequestsGenerateReviewGuide]: AuthOrchestrationOperateScope,
   [WS_METHODS.projectsCreateFromThread]: AuthOrchestrationOperateScope,
+  // A Bot's notes steer its later turns, as a message to it does.
+  [WS_METHODS.botFilesWrite]: AuthOrchestrationOperateScope,
+  [WS_METHODS.botNoteWrite]: AuthOrchestrationOperateScope,
+  [WS_METHODS.botNoteDelete]: AuthOrchestrationOperateScope,
+  [WS_METHODS.botStart]: AuthOrchestrationOperateScope,
+  [WS_METHODS.botCreate]: AuthOrchestrationOperateScope,
   [WS_METHODS.sourceControlCloneRepository]: AuthSourceControlWriteScope,
   [WS_METHODS.sourceControlPublishRepository]: AuthSourceControlWriteScope,
   [WS_METHODS.sourceControlStar]: AuthSourceControlWriteScope,

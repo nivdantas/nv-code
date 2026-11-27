@@ -1,4 +1,5 @@
 import type {
+  OrchestrationV2Notification,
   OrchestrationV2SearchThreadInput,
   OrchestrationV2SearchThreadResult,
 } from "@t3tools/contracts";
@@ -165,6 +166,8 @@ export interface ThreadManagementSendInput {
   readonly attachments: ReadonlyArray<ChatAttachment>;
   readonly modelSelection?: ModelSelection;
   readonly mode: ThreadManagementSendMode;
+  /** Shows the message as a notification row instead of a user message. */
+  readonly notification?: OrchestrationV2Notification;
   /** Start a new provider session; the orchestrator queues it instead of steering. */
   readonly freshContext?: boolean;
   /** Ask the run for a result as data matching this JSON Schema; it is queued, never steered. */
@@ -981,6 +984,7 @@ const make = Effect.gen(function* () {
       ...(input.linkedSender === undefined ? {} : { linkedSender: input.linkedSender }),
       text: input.text,
       attachments: input.attachments,
+      ...(input.notification === undefined ? {} : { notification: input.notification }),
       ...(input.modelSelection === undefined ? {} : { modelSelection: input.modelSelection }),
       ...(input.freshContext ? { freshContext: true } : {}),
       ...(input.outputSchema === undefined ? {} : { outputSchema: input.outputSchema }),

@@ -51,6 +51,7 @@ import { AuthMcpClientAccess } from "./auth.ts";
 import { ChatAttachment } from "./chatAttachment.ts";
 import { ThreadGuestShare } from "./guestShare.ts";
 import { StoredThreadTags, ThreadTag } from "./threadTags.ts";
+import { ThreadBotConfig } from "./bots.ts";
 import { ThreadTitleRegenerationOutcome } from "./threadTitle.ts";
 import {
   OrchestrationSearchThreadsInput,
@@ -552,6 +553,9 @@ export const OrchestrationV2AppThread = Schema.Struct({
   activeOrderKey: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
   /** Absent on threads written before tags existed; read as empty. */
   tags: Schema.optional(StoredThreadTags),
+  /** The top-level thread this one works for. Groups are one level deep. */
+  groupedUnderThreadId: Schema.optional(Schema.NullOr(ThreadId)),
+  botConfig: Schema.optional(Schema.NullOr(ThreadBotConfig)),
   lastVisitedAt: Schema.NullOr(Schema.DateTimeUtc).pipe(
     Schema.withDecodingDefault(Effect.succeed(null)),
   ),
@@ -2488,6 +2492,8 @@ export const OrchestrationV2ThreadShell = Schema.Struct({
   activeOrderKey: Schema.optional(Schema.NullOr(TrimmedNonEmptyString)),
   /** Absent on threads written before tags existed; read as empty. */
   tags: Schema.optional(StoredThreadTags),
+  groupedUnderThreadId: Schema.optional(Schema.NullOr(ThreadId)),
+  botConfig: Schema.optional(Schema.NullOr(ThreadBotConfig)),
   lastVisitedAt: Schema.optional(Schema.NullOr(Schema.DateTimeUtc)),
   opens: Schema.optional(LenientThreadOpens),
   titleRegeneration: Schema.optional(
@@ -3344,6 +3350,10 @@ export const OrchestrationV2Command = Schema.Union([
     delegatedFrom: Schema.optional(OrchestrationV2DelegatedFrom),
     /** Only the server sets this, for a thread that is a workflow run's agent step. */
     workflowRun: Schema.optional(OrchestrationV2WorkflowOrigin),
+    /** Groups the new thread as a worker; a worker's leader is used instead. Dropped when invalid. */
+    groupedUnderThreadId: Schema.optional(ThreadId),
+    /** Only the server sets this, for a Bot it starts (Home, or Start a Bot from a thread). */
+    botConfig: Schema.optional(ThreadBotConfig),
     importedNativeThread: Schema.optional(
       Schema.Struct({
         ref: Schema.Struct({
@@ -3503,6 +3513,10 @@ export const OrchestrationV2Command = Schema.Union([
     limitRecovery: Schema.optional(Schema.NullOr(OrchestrationV2LimitRecoveryUpdate)),
     /** Link (object) or unlink (null) a pull request; absent leaves it unchanged. */
     linkedPullRequest: Schema.optional(Schema.NullOr(ThreadLinkedPullRequest)),
+    /** Group under a top-level thread, or ungroup (null); absent leaves it unchanged. */
+    groupedUnderThreadId: Schema.optional(Schema.NullOr(ThreadId)),
+    /** Mutes or unmutes a Bot's workers; refused for a thread that is not a Bot. */
+    botMuteChildren: Schema.optional(Schema.Boolean),
   }),
   Schema.Struct({
     type: Schema.Literal("thread.pull-request.link"),
@@ -4003,6 +4017,16 @@ const OrchestrationV2InternalCommand = Schema.Union([
   /** Delivering the answer to request `requestId` failed on its last attempt. */
   Schema.Struct({
     type: Schema.Literal("runtime-request.delivery.fail"),
+    commandId: CommandId,
+    threadId: ThreadId,
+    requestId: RuntimeRequestId,
+  }),
+  /**
+   * A Bot never blocks on the user: its provider's blocking question becomes a message
+   * question answered by the user's next message, and the provider is told to end its turn.
+   */
+  Schema.Struct({
+    type: Schema.Literal("runtime-request.release-to-message"),
     commandId: CommandId,
     threadId: ThreadId,
     requestId: RuntimeRequestId,

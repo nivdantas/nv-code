@@ -108,7 +108,9 @@ import { TimelineSystemDivider } from "./TimelineSystemDivider";
 
 import { forwardWheelToTimeline } from "./timelineMinimapWheel";
 import { TimelineMinimap } from "./TimelineMinimap";
+import { BotReplyHeader, BotTypingTimelineRow, BotWakeTimelineRow } from "../bot/BotTimelineRows";
 import {
+  type TimelineBot,
   type TimelineRowSharedState,
   type TimelineRowActivityState,
   TimelineRowCtx,
@@ -276,6 +278,8 @@ interface MessagesTimelineProps {
   detailBehindShell?: boolean;
   runningRunId?: RunId | null;
   turnDiffSummaries: ReadonlyArray<TurnDiffSummary>;
+  /** Set on a Bot's thread, whose transcript reads as a chat with the Bot. */
+  bot?: TimelineBot | null;
   routeThreadKey: string;
   displayThreadKey?: string;
   /** Off where another region already speaks the thread's status, like a subagent's bar. */
@@ -441,6 +445,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
   emptyPlaceholderInset,
   topFadeEnabled = false,
   historyControls,
+  bot = null,
 }: MessagesTimelineProps) {
   const gt = useGT();
   const canvas = useChatCanvas();
@@ -675,6 +680,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
         runlessWorkActive,
         toolCallVisibility,
         revealedMessageId,
+        botPresentation: bot !== null,
       })
     : null;
   const activeFindRunId =
@@ -719,6 +725,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
         runlessWorkActive,
         toolCallVisibility,
         revealedMessageId,
+        botPresentation: bot !== null,
       })
     ).get(citedEntry.id);
     setCitationExpandedFor(citationRequest.key);
@@ -780,6 +787,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
     worktreeSetup,
     toolCallVisibility,
     revealedMessageId,
+    botPresentation: bot !== null,
   });
   const rows = useStableRows(rawRows, listIdentityKey);
   const matchedApprovalRequestIds = new Set<string>();
@@ -1191,6 +1199,7 @@ const ConversationTimeline = memo(function ConversationTimeline({
     onWorktreeSetupWorkLocally: onWorktreeSetupWorkLocally ?? null,
     onOpenWorktreeSetupTerminal: onOpenWorktreeSetupTerminal ?? null,
     workGroupViewState,
+    bot,
   };
   const compactionAwaitingRow =
     isCompacting &&
@@ -1686,7 +1695,7 @@ const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: Time
       className={cn(
         isWorkLogRow || isSubagentGroup
           ? undefined
-          : row.kind === "turn-fold" || row.kind === "working"
+          : row.kind === "turn-fold" || row.kind === "working" || row.kind === "bot-wake"
             ? "pb-1.5"
             : row.kind === "message" && row.groupedWithNext
               ? "pb-1"
@@ -1742,6 +1751,7 @@ const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: Time
       {row.kind === "attempt-fold" ? <AttemptFoldTimelineRow row={row} /> : null}
       {row.kind === "context-compaction" ? <ContextCompactionTimelineRow row={row} /> : null}
       {row.kind === "message" && row.message.role === "user" ? <UserMessageRow row={row} /> : null}
+      {row.kind === "message" && row.botAvatar ? <BotReplyHeader /> : null}
       {row.kind === "message" && row.message.role === "assistant" ? (
         <AssistantTimelineRow row={row} />
       ) : null}
@@ -1754,6 +1764,8 @@ const TimelineRowContent = memo(function TimelineRowContent({ row }: { row: Time
       {row.kind === "working" ? <WorkingTimelineRow row={row} /> : null}
       {row.kind === "worktree-setup" ? <WorktreeSetupTimelineRow row={row} /> : null}
       {row.kind === "event" ? <V2EventTimelineRow row={row} /> : null}
+      {row.kind === "bot-wake" ? <BotWakeTimelineRow row={row} /> : null}
+      {row.kind === "bot-typing" ? <BotTypingTimelineRow /> : null}
     </div>
   );
 });
