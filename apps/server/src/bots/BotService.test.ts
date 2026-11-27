@@ -1,6 +1,15 @@
 import { assert, it } from "@effect/vitest";
-import { type MilestoneEvent, MilestoneId, ProjectId, RunId, ThreadId } from "@t3tools/contracts";
+import {
+  type MilestoneEvent,
+  MilestoneId,
+  ProjectId,
+  RunId,
+  ThreadId,
+  MessageId,
+  TurnItemId,
+} from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
+import * as DateTime from "effect/DateTime";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 
@@ -18,6 +27,7 @@ const milestone = (
         readonly type?: "thread.run_settled" | "thread.needs_input";
         /** The run whose agent step the thread is. */
         readonly stepOf?: string;
+        readonly outcome?: "completed" | "failed";
       }
     | { readonly workflowRunId: string },
 ): MilestoneEvent => {
@@ -60,7 +70,7 @@ const milestone = (
         type: "thread.run_settled",
         threadId: ThreadId.make(fields.threadId),
         runId: RunId.make(`run:${id}`),
-        outcome: "completed",
+        outcome: fields.outcome ?? "completed",
       };
 };
 
@@ -187,6 +197,61 @@ it.effect(
     }).pipe(provideBots(orchestration));
   },
 );
+
+it.effect("records completed and failed workers while the Orchestrator is busy", () => {
+  const orchestration = makeOrchestration();
+  const leader = orchestration.addThread("orchestrator", {
+    botConfig: bot,
+    activeRunId: RunId.make("busy"),
+  });
+  const worker = orchestration.addThread("worker", {
+    title: "Checkout fix",
+    groupedUnderThreadId: leader.id,
+  });
+  const runId = RunId.make("run:done");
+  const now = DateTime.makeUnsafe("2026-11-20T00:00:00.000Z");
+  orchestration.turnItemsByRun.set(runId, [
+    {
+      id: TurnItemId.make("final-reply"),
+      threadId: worker.id,
+      runId,
+      nodeId: null,
+      providerThreadId: null,
+      providerTurnId: null,
+      nativeItemRef: null,
+      parentItemId: null,
+      ordinal: 1,
+      status: "completed",
+      title: null,
+      startedAt: now,
+      completedAt: now,
+      updatedAt: now,
+      type: "assistant_message",
+      phase: "final_answer",
+      messageId: MessageId.make("final-reply"),
+      text: "Fixed the checkout test.",
+      streaming: false,
+    },
+  ]);
+  return Effect.gen(function* () {
+    const bots = yield* BotService.BotService;
+    const completed = milestone("done", { threadId: "worker" });
+    const failed = milestone("fail", { threadId: "worker", outcome: "failed" });
+    yield* bots.handleMilestone(completed);
+    yield* bots.handleMilestone(failed);
+    yield* bots.handleMilestone(completed);
+    const { notes } = yield* bots.readFiles({ threadId: leader.id });
+    assert.sameMembers(
+      notes.map(({ summary }) => summary),
+      ["Worker turn completed. Fixed the checkout test.", "Worker turn failed."],
+    );
+    for (const { slug, title } of notes) {
+      assert.strictEqual(title, "Checkout fix");
+      const { body } = yield* bots.readNote({ threadId: leader.id, slug });
+      assert.include(body, "<t3-thread://v2/env:here/worker>");
+    }
+  }).pipe(provideBots(orchestration));
+});
 
 it.effect("creates exactly one idle Orchestrator in scratch at startup", () => {
   const orchestration = makeOrchestration();

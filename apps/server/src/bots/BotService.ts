@@ -23,6 +23,8 @@ import {
 } from "@t3tools/contracts";
 import { formatThreadLink } from "@t3tools/shared/threadLinks";
 import * as Context from "effect/Context";
+import * as Digest from "effect/crypto/Digest";
+import * as Hex from "effect/encoding/Hex";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -30,6 +32,7 @@ import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as Ref from "effect/Ref";
+import * as Schedule from "effect/Schedule";
 import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
 
@@ -44,6 +47,7 @@ import {
   provisionNvBot,
   refuseAdditionalBot,
 } from "../nv/bots/orchestratorPolicy.ts";
+import { WORKER_NOTE_PREFIX, workerRunNote } from "../nv/bots/workerNote.ts";
 import * as ProjectionStore from "../orchestration-v2/ProjectionStore.ts";
 import * as ThreadLaunchService from "../orchestration-v2/ThreadLaunchService.ts";
 import * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
@@ -261,6 +265,7 @@ const make = Effect.gen(function* () {
   const threads = yield* ThreadManagementService.ThreadManagementService;
   const launches = yield* ThreadLaunchService.ThreadLaunchService;
   const environment = yield* ServerEnvironment.ServerEnvironment;
+  const digest = yield* Digest.Digest;
   const botsDir = path.resolve(config.baseDir, "bots");
   const watchesPath = path.join(botsDir, "watches.json");
   const lock = yield* Semaphore.make(1);
@@ -472,7 +477,10 @@ const make = Effect.gen(function* () {
       yield* requireBot(threadId);
       const target = yield* notePath(threadId, slug);
       const existing = yield* loadNotes(threadId);
-      if (existing.length >= BOT_NOTE_MAX_COUNT && !existing.some((note) => note.slug === slug)) {
+      const manualCount = existing.filter(
+        (note) => !note.slug.startsWith(WORKER_NOTE_PREFIX),
+      ).length;
+      if (manualCount >= BOT_NOTE_MAX_COUNT && !existing.some((note) => note.slug === slug)) {
         return yield* new BotError({ threadId, reason: "too_many_notes" });
       }
       yield* store(threadId, target, serializeNote({ title, summary, body }));
@@ -627,6 +635,35 @@ const make = Effect.gen(function* () {
     );
   }, locked);
 
+  const writeWorkerNote = Effect.fn("BotService.writeWorkerNote")(function* (input: {
+    readonly botThreadId: ThreadId;
+    readonly threadId: ThreadId;
+    readonly title: string;
+    readonly environmentId: EnvironmentId;
+    readonly event: Extract<MilestoneEvent, { type: "thread.run_settled" }>;
+  }) {
+    const { botThreadId, threadId, event } = input;
+    if (!(yield* isBot(botThreadId))) return;
+    const bytes = new TextEncoder().encode(event.runId);
+    const hash = yield* digest.digest(Digest.sha256, bytes);
+    const slug = `${WORKER_NOTE_PREFIX}${Hex.encode(hash).slice(0, 48)}`;
+    const target = yield* notePath(botThreadId, slug);
+    if (yield* fileSystem.exists(target)) return;
+    const { turnItems } = yield* projectionStore
+      .getThreadRecords(threadId, ["turnItems"], {
+        turnItemRunIds: [event.runId],
+        turnItemTypes: ["assistant_message"],
+      })
+      .pipe(
+        Effect.catchTags({
+          ProjectionStoreThreadNotFoundError: () => Effect.succeed({ turnItems: [] }),
+        }),
+      );
+    const partial = `${target}.partial`;
+    yield* writeText(botThreadId, partial, serializeNote(workerRunNote({ ...input, turnItems })));
+    yield* fileSystem.rename(partial, target);
+  }, locked);
+
   // Untraced: runs for every milestone, and most return before doing anything.
   const handleMilestone: BotService["Service"]["handleMilestone"] = Effect.fnUntraced(
     function* (event) {
@@ -641,6 +678,23 @@ const make = Effect.gen(function* () {
               .pipe(Effect.orElseSucceed(() => null));
       const leaderId = thread?.groupedUnderThreadId;
       if (leaderId != null) ends.set(leaderId, []);
+      if (
+        thread !== null &&
+        leaderId != null &&
+        event.type === "thread.run_settled" &&
+        (event.outcome === "completed" || event.outcome === "failed")
+      ) {
+        yield* writeWorkerNote({
+          botThreadId: leaderId,
+          threadId: thread.id,
+          title: thread.title,
+          event,
+          environmentId,
+        }).pipe(
+          Effect.retry({ times: 2, schedule: Schedule.spaced("100 millis") }),
+          Effect.ignoreCause({ log: true }),
+        );
+      }
       for (const [botThreadId, list] of yield* Ref.get(watchesRef)) {
         for (const watch of list) {
           if (!watchMatches(watch, event, environmentId)) continue;
