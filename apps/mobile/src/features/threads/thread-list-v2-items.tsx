@@ -1064,7 +1064,8 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
         : [],
     [gt, props.autoSettleOptOutSupported, thread.autoSettleDisabledAt],
   );
-  const canTurnIntoProject = canTurnThreadIntoProject(thread);
+  const isBot = thread.botConfig != null;
+  const canTurnIntoProject = !isBot && canTurnThreadIntoProject(thread);
   const titleMenuItems = useMemo<MenuAction[]>(
     () => [
       {
@@ -1122,6 +1123,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
         ? [{ id: "share-guest", title: gt("Share with guest"), image: "person.badge.plus" }]
         : []),
     ];
+    if (isBot) return [...direct, ...titleMenuItems];
     if (snoozedRow) {
       return layoutThreadListV2RowMenuActions(
         {
@@ -1200,6 +1202,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
     );
   }, [
     autoSettleMenuItems,
+    isBot,
     canShareWithGuest,
     canUnsettle,
     pinMenuItems,
@@ -1366,7 +1369,8 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
     [gt, handleMenuAction, snoozePresetActions, swipeActions.secondary, thread.title],
   );
   const canSwipe =
-    canOperateThread || (triageOnly && TRIAGE_MENU_ACTION_IDS.has(swipeActions.primary));
+    !isBot &&
+    (canOperateThread || (triageOnly && TRIAGE_MENU_ACTION_IDS.has(swipeActions.primary)));
   const swipeAccessibilityHint = !canSwipe
     ? gt("Opens the thread")
     : secondaryAction === null

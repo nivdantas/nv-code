@@ -1,4 +1,3 @@
-import { useAtomValue } from "@effect/atom-react";
 import { scopedThreadKey, scopeThreadRef } from "@t3tools/client-runtime/environment";
 import type { EnvironmentThreadShell } from "@t3tools/client-runtime/state/models";
 import {
@@ -8,16 +7,13 @@ import {
 } from "@t3tools/client-runtime/state/thread-grouping";
 import type { ContextMenuSource, ScopedThreadRef } from "@t3tools/contracts";
 import { T, useGT } from "gt-react";
-import { PlusIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { contextMenuSourceOf } from "~/contextMenuSource";
-import { useScratchProject } from "~/hooks/useScratchProject";
 import { cn } from "~/lib/utils";
-import { botFilesEnvironment } from "~/state/botFiles";
+import { useEnvironment } from "~/state/environments";
 import { BotAvatar } from "../bot/BotAvatar";
 import { type BotAvatarState, resolveBotStatus } from "../bot/botStatus";
-import { openNewBotDialog } from "../chat/NewBotDialog";
 import { Badge } from "../ui/badge";
 
 // Long enough for a state change to read as the Bot reacting, short enough not to keep painting.
@@ -36,11 +32,13 @@ function BotRow(props: {
   bot: EnvironmentThreadShell;
   board: BotWorkersBoard<EnvironmentThreadShell>;
   isActive: boolean;
+  showEnvironment: boolean;
   onNavigate: (threadRef: ScopedThreadRef) => void;
   onContextMenu: ThreadContextMenuHandler;
 }) {
   const gt = useGT();
   const threadRef = scopeThreadRef(props.bot.environmentId, props.bot.id);
+  const environment = useEnvironment(props.bot.environmentId);
   const status = resolveBotStatus(props.bot, props.board);
   const [hovered, setHovered] = useState(false);
   const [shownState, setShownState] = useState(status.state);
@@ -84,7 +82,14 @@ function BotRow(props: {
           size={20}
           live={hovered || reactingTo !== null}
         />
-        <span className="min-w-0 flex-1 truncate">{props.bot.title}</span>
+        <span className="min-w-0 flex-1 truncate">
+          {props.bot.title === "Orchestrator" ? gt("Orchestrator") : props.bot.title}
+        </span>
+        {props.showEnvironment && (
+          <span className="max-w-[40%] truncate text-2xs text-sidebar-muted-foreground">
+            {environment?.label ?? props.bot.environmentId}
+          </span>
+        )}
         {status.needsYou > 0 ? (
           <Badge variant="warning" size="sm">
             {gt("{count, plural, one {Needs you} other {{count} need you}}", {
@@ -100,28 +105,6 @@ function BotRow(props: {
             <T>Working</T>
           </span>
         ) : null}
-      </button>
-    </li>
-  );
-}
-
-function NewBotRow() {
-  const { scratchEnvironmentId } = useScratchProject();
-  const environmentId = scratchEnvironmentId(null);
-  const canCreate = useAtomValue(botFilesEnvironment.create.permissionAtom(environmentId));
-  if (environmentId === null || !canCreate) return null;
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={() => openNewBotDialog(environmentId)}
-        className={cn(
-          ROW_CLASS,
-          "h-7 text-xs text-sidebar-muted-foreground hover:bg-sidebar-row-hover hover:text-sidebar-foreground",
-        )}
-      >
-        <PlusIcon aria-hidden className="mx-0.5 size-4 shrink-0" />
-        <T>New Bot</T>
       </button>
     </li>
   );
@@ -155,12 +138,12 @@ export function SidebarBotBlock(props: {
             bot={bot}
             board={board}
             isActive={isActive}
+            showEnvironment={props.botGroups.bots.length > 1}
             onNavigate={props.onNavigate}
             onContextMenu={props.onContextMenu}
           />
         );
       })}
-      <NewBotRow />
     </ul>
   );
 }

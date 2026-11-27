@@ -1,3 +1,4 @@
+import { listLiveBotIds } from "../nv/bots/orchestratorPolicy.ts";
 import type { ProjectThreadAwarenessV2Input } from "@t3tools/shared/agentAwareness";
 import { applyOrchestrationV2ThreadVisit, pendingGuestMessageCount } from "@t3tools/contracts";
 import { applyThreadPullRequestLinkUpdate } from "../sourceControl/threadPullRequests.ts";
@@ -586,6 +587,7 @@ export interface ProjectionStoreV2Shape {
   ) => Effect.Effect<ReadonlyArray<ThreadId>, ProjectionStoreV2Error>;
   readonly getRunCount: (threadId: ThreadId) => Effect.Effect<number, ProjectionStoreV2Error>;
   /** Child threads of the thread's app-owned tasks, in task order, without decoding the tasks. */
+  readonly listLiveBotIds: Effect.Effect<ReadonlyArray<ThreadId>, ProjectionStoreReadError>;
   readonly listAppOwnedChildThreadIds: (
     threadId: ThreadId,
   ) => Effect.Effect<ReadonlyArray<ThreadId>, ProjectionStoreV2Error>;
@@ -10081,6 +10083,14 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
       getSubagentCount: readOnReader(getSubagentCount),
       listGroupedWorkerIds: readOnReader(listGroupedWorkerIds),
       getRunCount: readOnReader(getRunCount),
+      listLiveBotIds: readOnReader(() =>
+        listLiveBotIds(sql).pipe(
+          Effect.mapError(
+            (cause) =>
+              new ProjectionStoreReadError({ threadId: ThreadId.make("nv-orchestrator"), cause }),
+          ),
+        ),
+      )(),
       listAppOwnedChildThreadIds: readOnReader(listAppOwnedChildThreadIds),
       hasPendingDelegatedCompletion: readOnReader(hasPendingDelegatedCompletion),
       getNextTurnItemOrdinal: readOnReader(getNextTurnItemOrdinal),

@@ -66,6 +66,20 @@ describe("buildThreadActionMenuItems", () => {
     },
   );
 
+  it("keeps lifecycle actions off the Orchestrator menu", () => {
+    const ids = buildThreadActionMenuItems({
+      ...baseState,
+      canTurnIntoProject: true,
+      grouping: { isBot: true, isGrouped: false, hasWorkers: false },
+    }).map(({ id }) => id);
+    expect(ids).toContain("rename");
+    expect(ids).not.toContain("archive");
+    expect(ids).not.toContain("delete");
+    expect(ids).not.toContain("settle");
+    expect(ids).not.toContain("snooze");
+    expect(ids).not.toContain("turn-into-project");
+  });
+
   it("disables archive and turning into a project while the thread is running", () => {
     const items = buildThreadActionMenuItems({
       ...baseState,

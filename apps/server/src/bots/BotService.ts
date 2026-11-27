@@ -15,13 +15,14 @@ import {
   CommandId,
   type EnvironmentId,
   MessageId,
+  isOrchestrationV2WorkActive,
+  type ModelSelection,
   type MilestoneEvent,
   type OrchestrationV2Notification,
   ThreadId,
 } from "@t3tools/contracts";
 import { formatThreadLink } from "@t3tools/shared/threadLinks";
 import * as Context from "effect/Context";
-import * as SecureRandom from "effect/crypto/SecureRandom";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -36,9 +37,13 @@ import * as ServerConfig from "../config.ts";
 import { parseNote, serializeNote } from "./botNotes.ts";
 import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
 import {
-  readForkHistoryItems,
-  renderThreadSummaryHandoff,
-} from "../orchestration-v2/ContextHandoffService.ts";
+  ensureNvOrchestrator,
+  NV_ORCHESTRATOR_PREFERENCES,
+  NV_ORCHESTRATOR_TITLE,
+  nvBotCreateCommandId,
+  provisionNvBot,
+  refuseAdditionalBot,
+} from "../nv/bots/orchestratorPolicy.ts";
 import * as ProjectionStore from "../orchestration-v2/ProjectionStore.ts";
 import * as ThreadLaunchService from "../orchestration-v2/ThreadLaunchService.ts";
 import * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
@@ -103,19 +108,16 @@ export class BotService extends Context.Service<
       botThreadId: ThreadId,
       target: BotWatchTarget,
     ) => Effect.Effect<ReadonlyArray<BotWatch>, BotError>;
-    /** Regroups a leader's workers under another Bot. */
-    readonly moveWorkers: (from: ThreadId, to: ThreadId) => Effect.Effect<void, BotError>;
     /** Wakes the Bots that `event` is news for: the leader of its worker thread, and its watchers. */
     readonly handleMilestone: (event: MilestoneEvent) => Effect.Effect<void>;
-    /**
-     * Starts a new Bot outside any project, seeded with a summary of the thread, and makes the thread
-     * (and any workers it led) the Bot's workers. The thread itself never changes role.
-     */
     readonly start: (input: {
       readonly threadId: ThreadId;
     }) => Effect.Effect<BotStartResult, BotError>;
-    /** Starts a new Bot with no source thread, from the user's instructions. */
+    /** Public RPC. NV-CODE provisions its single Bot on startup. */
     readonly create: (input: BotCreateInput) => Effect.Effect<BotStartResult, BotError>;
+    readonly ensureOrchestrator: <E>(
+      selectModel: Effect.Effect<ModelSelection, E>,
+    ) => Effect.Effect<ThreadId, BotError | E>;
   }
 >()("t3/bots/BotService") {}
 
@@ -250,9 +252,6 @@ const wakeNotification = (
   }
 };
 
-// A summary the user reads as the Bot's first message, so smaller than a provider handoff.
-const START_HANDOFF_TOKEN_BUDGET = 8_000;
-
 const make = Effect.gen(function* () {
   const fileSystem = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
@@ -262,12 +261,10 @@ const make = Effect.gen(function* () {
   const threads = yield* ThreadManagementService.ThreadManagementService;
   const launches = yield* ThreadLaunchService.ThreadLaunchService;
   const environment = yield* ServerEnvironment.ServerEnvironment;
-  const random = yield* SecureRandom.SecureRandom;
   const botsDir = path.resolve(config.baseDir, "bots");
   const watchesPath = path.join(botsDir, "watches.json");
   const lock = yield* Semaphore.make(1);
   const locked = lock.withPermits(1);
-  const newId = random.uuidV4().pipe(Effect.orDie);
 
   // Watches live in one file, read once: every milestone is matched against them in memory.
   const initialWatches = yield* fileSystem.readFileString(watchesPath).pipe(
@@ -400,7 +397,8 @@ const make = Effect.gen(function* () {
       thread !== null &&
       thread.deletedAt === null &&
       thread.archivedAt === null &&
-      thread.botConfig != null
+      thread.botConfig != null &&
+      thread.lineage.parentThreadId === null
     );
   });
 
@@ -570,26 +568,25 @@ const make = Effect.gen(function* () {
     locked,
   );
 
-  const regroup = (threadId: ThreadId, leaderId: ThreadId) =>
-    newId.pipe(
-      Effect.flatMap((id) =>
-        threads.dispatch({
-          type: "thread.metadata.update",
-          commandId: CommandId.make(`bot-worker:${id}`),
-          threadId,
-          groupedUnderThreadId: leaderId,
-        }),
-      ),
-      Effect.mapError((cause) => new BotError({ threadId: leaderId, reason: "io", cause })),
-    );
-
-  const moveWorkers: BotService["Service"]["moveWorkers"] = Effect.fn("BotService.moveWorkers")(
-    function* (from, to) {
-      const workers = yield* projectionStore
-        .listGroupedWorkerIds(from)
-        .pipe(Effect.mapError(ioError(from)));
-      yield* Effect.forEach(workers, (member) => regroup(member, to), { discard: true });
+  const moveWorkers = Effect.fn("BotService.moveWorkers")(
+    function* (from: ThreadId, to: ThreadId) {
+      const workers = yield* projectionStore.listGroupedWorkerIds(from);
+      yield* Effect.forEach(
+        workers,
+        (threadId) =>
+          provisionNvBot(
+            threadId,
+            threads.dispatch({
+              type: "thread.metadata.update",
+              commandId: CommandId.make(`nv:bot:regroup:${from}:${threadId}:${to}`),
+              threadId,
+              groupedUnderThreadId: to,
+            }),
+          ),
+        { discard: true },
+      );
     },
+    (effect, from) => effect.pipe(Effect.mapError(ioError(from))),
   );
 
   /** A Bot that is settled has let its workers go, so it is not woken. */
@@ -672,114 +669,121 @@ const make = Effect.gen(function* () {
     },
   );
 
-  const start: BotService["Service"]["start"] = Effect.fn("BotService.start")(function* ({
-    threadId,
-  }) {
-    const cannot = (detail: string) => new BotError({ threadId, reason: "cannot_start", detail });
-    const source = yield* threads
-      .getThreadProjection(threadId)
-      .pipe(Effect.mapError(() => cannot("That thread no longer exists.")));
-    const thread = source.thread;
-    if (thread.deletedAt !== null || thread.archivedAt !== null) {
-      return yield* cannot("Unarchive the thread first.");
-    }
-    if (thread.lineage.parentThreadId !== null) {
-      return yield* cannot("A Bot starts only from a top-level thread.");
-    }
-    if (thread.botConfig != null) {
-      return yield* cannot("That thread is a Bot already.");
-    }
-    const lastRun = source.runs.reduce<(typeof source.runs)[number] | undefined>(
-      (latest, run) => (latest === undefined || run.ordinal > latest.ordinal ? run : latest),
-      undefined,
-    );
-    const items =
-      lastRun === undefined
-        ? []
-        : // No fork exists: side-chat lineage reads every run of the source, not a fork's subset.
-          yield* readForkHistoryItems(projectionStore, source, lastRun, {
-            ...thread,
-            lineage: { ...thread.lineage, sideChat: true },
-          }).pipe(Effect.mapError(ioError(threadId)));
-    const environmentId = yield* environment.getEnvironmentId;
-    const text = [
-      `You are the new Bot for ${formatThreadLink({ environmentId, threadId }, thread.title)} (threadId ${threadId}). That thread is now your first worker: it keeps its work, and you are woken when it finishes or needs input.`,
-      "Read the handoff below, save what matters as notes with t3_bot_note_write, then tell the user in a few lines what you understand and what you will delegate next.",
-      "",
-      renderThreadSummaryHandoff({
-        sourceThreadId: threadId,
-        runs: source.runs,
-        items,
-        budget: START_HANDOFF_TOKEN_BUDGET,
-      }),
-    ].join("\n");
-    const id = yield* newId;
-    const botThreadId = ThreadId.make(id);
-    const launchFailed = (cause: unknown) =>
-      new BotError({ threadId, reason: "launch_failed", cause });
-    const { projectId } = yield* managedFolders.ensureScratchProject.pipe(
-      Effect.mapError(launchFailed),
-    );
-    yield* launches
-      .launch({
-        commandId: CommandId.make(`bot-start:${id}`),
-        threadId: botThreadId,
-        projectId,
-        title: thread.title,
-        generateTitle: false,
-        modelSelection: thread.modelSelection,
-        runtimeMode: thread.runtimeMode,
-        interactionMode: "default",
-        workspaceStrategy: { type: "root" },
-        initialMessage: { text, attachments: [] },
-        createdBy: "user",
-        creationSource: "server",
-        botConfig: { enabled: true, muteChildren: false },
-      })
-      .pipe(Effect.mapError(launchFailed));
-    // Its workers first: a thread that still leads workers cannot join a group.
-    yield* moveWorkers(threadId, botThreadId);
-    yield* regroup(threadId, botThreadId);
-    return { threadId: botThreadId };
-  });
+  const start: BotService["Service"]["start"] = ({ threadId }) =>
+    Effect.fail(refuseAdditionalBot(threadId));
 
-  const create: BotService["Service"]["create"] = Effect.fn("BotService.create")(function* (input) {
-    const id = yield* newId;
-    const botThreadId = ThreadId.make(id);
+  const create = Effect.fn("BotService.create")(function* (
+    input: BotCreateInput,
+    botThreadId?: ThreadId,
+  ) {
+    if (botThreadId === undefined) return yield* refuseAdditionalBot();
     const failed = (cause: unknown) =>
       new BotError({ threadId: botThreadId, reason: "launch_failed", cause });
-    const instructions = input.instructions.trim();
-    if (instructions !== "")
-      yield* store(botThreadId, preferencesPath(botThreadId), `${instructions}\n`);
-    // A Bot belongs to no project: it runs in a scratch folder and sends workers anywhere.
+    const preferences = preferencesPath(botThreadId);
+    if ((yield* readText(botThreadId, preferences)) === null) {
+      yield* store(botThreadId, preferences, `${input.instructions}\n`);
+    }
     const { projectId } = yield* managedFolders.ensureScratchProject.pipe(Effect.mapError(failed));
-    const text = [
-      `You are a new Bot named "${input.title}".`,
-      instructions === ""
-        ? "The user gave you no instructions yet. Introduce yourself in a few lines and ask what your job is, then save it with t3_bot_preferences_append."
-        : "Your instructions from the user, also in your preferences.md:\n\n" +
-          instructions +
-          "\n\nIntroduce yourself in a few lines: what you understand your job to be and how you will work.",
-    ].join("\n");
-    yield* launches
-      .launch({
-        commandId: CommandId.make(`bot-create:${id}`),
+    yield* provisionNvBot(
+      botThreadId,
+      launches.launch({
+        commandId: nvBotCreateCommandId(botThreadId),
         threadId: botThreadId,
         projectId,
         title: input.title,
         generateTitle: false,
         modelSelection: input.modelSelection,
-        runtimeMode: "full-access",
+        runtimeMode: "approval-required",
         interactionMode: "default",
         workspaceStrategy: { type: "root" },
-        initialMessage: { text, attachments: [] },
         createdBy: "user",
         creationSource: "server",
         botConfig: { enabled: true, muteChildren: false },
-      })
-      .pipe(Effect.mapError(failed));
+      }),
+    ).pipe(Effect.mapError(failed));
     return { threadId: botThreadId };
   });
+
+  const activate = Effect.fn("BotService.activateOrchestrator")(
+    function* (id: ThreadId) {
+      const thread = yield* projectionStore.findThread(id);
+      if (thread?.snoozedUntil != null) {
+        yield* provisionNvBot(
+          id,
+          threads.dispatch({
+            type: "thread.unsnooze",
+            commandId: CommandId.make(`nv:bot:wake:${id}:${thread.snoozedUntil}`),
+            threadId: id,
+            reason: "user",
+          }),
+        );
+      }
+      if (thread?.settledOverride === "settled") {
+        yield* provisionNvBot(
+          id,
+          threads.dispatch({
+            type: "thread.unsettle",
+            commandId: CommandId.make(`nv:bot:activate:${id}`),
+            threadId: id,
+            reason: "user",
+          }),
+        );
+      }
+    },
+    (effect, id) => effect.pipe(Effect.mapError(ioError(id))),
+  );
+
+  const retire = Effect.fn("BotService.retireBot")(function* (id: ThreadId, keep: ThreadId) {
+    const { subagents } = yield* projectionStore
+      .getThreadRecords(id, ["subagents"])
+      .pipe(Effect.mapError(ioError(id)));
+    if (
+      subagents.some(
+        (task) =>
+          task.origin === "app_owned" &&
+          task.childThreadId !== null &&
+          isOrchestrationV2WorkActive(task.status),
+      )
+    ) {
+      return yield* new BotError({
+        threadId: id,
+        reason: "cannot_start",
+        detail: "Waiting for the older Bot's remaining delegated tasks.",
+      });
+    }
+    yield* moveWorkers(id, keep);
+    yield* provisionNvBot(
+      id,
+      threads.dispatch({
+        type: "thread.archive",
+        commandId: CommandId.make(`nv:bot:retire:${id}`),
+        threadId: id,
+      }),
+    ).pipe(Effect.mapError(ioError(id)));
+  });
+
+  const ensureOrchestrator: BotService["Service"]["ensureOrchestrator"] = (selectModel) =>
+    ensureNvOrchestrator({
+      liveIds: projectionStore.listLiveBotIds.pipe(
+        Effect.mapError(ioError(ThreadId.make("nv-orchestrator"))),
+      ),
+      findThread: (id) => projectionStore.findThread(id).pipe(Effect.mapError(ioError(id))),
+      create: (id) =>
+        selectModel.pipe(
+          Effect.flatMap((modelSelection) =>
+            create(
+              {
+                title: NV_ORCHESTRATOR_TITLE,
+                instructions: NV_ORCHESTRATOR_PREFERENCES,
+                modelSelection,
+              },
+              id,
+            ),
+          ),
+        ),
+      activate,
+      retire,
+    }).pipe(locked);
 
   return BotService.of({
     isBot,
@@ -793,10 +797,10 @@ const make = Effect.gen(function* () {
     watches,
     addWatch,
     removeWatch,
-    moveWorkers,
     handleMilestone,
     start,
     create,
+    ensureOrchestrator,
   });
 });
 

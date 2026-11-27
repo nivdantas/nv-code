@@ -39,6 +39,7 @@ export interface FakeThread {
   readonly projectId: ProjectId;
   readonly title: string;
   readonly modelSelection: ModelSelection;
+  readonly createdAt: string;
   readonly runtimeMode: "full-access";
   readonly lineage: { readonly parentThreadId: ThreadId | null };
   botConfig: ThreadBotConfig | null;
@@ -52,6 +53,7 @@ export interface FakeThread {
 export interface LaunchedThread {
   readonly threadId: ThreadId;
   readonly projectId: ProjectId;
+  readonly commandId: string;
   readonly text: string | undefined;
 }
 
@@ -68,6 +70,7 @@ export const makeOrchestration = () => {
       projectId: ProjectId.make("project:a"),
       title: id,
       modelSelection: model,
+      createdAt: id,
       runtimeMode: "full-access",
       lineage: { parentThreadId: null },
       botConfig: null,
@@ -94,7 +97,12 @@ export const makeOrchestration = () => {
             title: input.title,
             botConfig: input.botConfig ?? null,
           });
-          launched.push({ threadId, projectId: input.projectId, text: input.initialMessage?.text });
+          launched.push({
+            threadId,
+            projectId: input.projectId,
+            commandId: input.commandId,
+            text: input.initialMessage?.text,
+          });
           return { threadId } as ThreadLaunchService.ThreadLaunchResult;
         }),
     }),
@@ -112,6 +120,12 @@ export const makeOrchestration = () => {
           if (command.type === "thread.metadata.update" && command.groupedUnderThreadId) {
             threads.get(command.threadId)!.groupedUnderThreadId = command.groupedUnderThreadId;
           }
+          if (command.type === "thread.archive") {
+            threads.get(command.threadId)!.archivedAt = "2026-11-20T00:00:00.000Z";
+          }
+          if (command.type === "thread.unsettle") {
+            threads.get(command.threadId)!.settledOverride = null;
+          }
           return { sequence: dispatched.length, storedEvents: [] };
         }),
       sendToThread: (input) =>
@@ -122,13 +136,24 @@ export const makeOrchestration = () => {
     }),
     Layer.mock(ProjectionStore.ProjectionStoreV2)({
       findThread: (threadId) => Effect.succeed(asAppThread(threads.get(threadId))),
+      listLiveBotIds: Effect.sync(() =>
+        [...threads.values()]
+          .filter(
+            (thread) =>
+              thread.botConfig != null &&
+              thread.archivedAt === null &&
+              thread.lineage.parentThreadId === null,
+          )
+          .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
+          .map((thread) => thread.id),
+      ),
       listGroupedWorkerIds: (threadId) =>
         Effect.succeed(
           [...threads.values()]
             .filter((thread) => thread.groupedUnderThreadId === threadId)
             .map((thread) => thread.id),
         ),
-      getThreadRecords: () => Effect.succeed({ turnItems: [] } as never),
+      getThreadRecords: () => Effect.succeed({ turnItems: [], subagents: [] } as never),
     }),
     Layer.mock(ManagedProjectFolders.ManagedProjectFolders)({
       namedProjectsRoot: "/unused",

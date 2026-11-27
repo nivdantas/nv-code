@@ -40,7 +40,8 @@
     "The first command for an Environment asks you to approve access in the desktop app.": "Beim ersten Befehl für eine Umgebung musst du den Zugriff in der Desktop-App bestätigen.",
     "What this bot is for, what it should do, and anything it should always keep in mind.": "Wofür dieser Bot da ist, was er tun soll und was er immer beachten soll.",
     "Yellow": "Gelb",
-    "op-session secrets CLI integration agent skill": "op-session Geheimnisse CLI Integration Agent Skill"
+    "op-session secrets CLI integration agent skill": "op-session Geheimnisse CLI Integration Agent Skill",
+    "Orchestrator": "Orchestrator"
   },
   "es": {
     "1Password Environments": "Entornos de 1Password",
@@ -85,7 +86,8 @@
     "The first command for an Environment asks you to approve access in the desktop app.": "El primer comando de un entorno te pide que apruebes el acceso en la aplicación de escritorio.",
     "What this bot is for, what it should do, and anything it should always keep in mind.": "Para qué sirve este bot, qué debe hacer y qué debe tener siempre en cuenta.",
     "Yellow": "Amarillo",
-    "op-session secrets CLI integration agent skill": "op-session secretos CLI integración habilidad agente"
+    "op-session secrets CLI integration agent skill": "op-session secretos CLI integración habilidad agente",
+    "Orchestrator": "Orquestador"
   },
   "fr": {
     "1Password Environments": "Environnements 1Password",
@@ -130,7 +132,8 @@
     "The first command for an Environment asks you to approve access in the desktop app.": "La première commande d’un environnement vous demande d’autoriser l’accès dans l’application de bureau.",
     "What this bot is for, what it should do, and anything it should always keep in mind.": "À quoi sert ce bot, ce qu’il doit faire et ce qu’il doit toujours garder en tête.",
     "Yellow": "Jaune",
-    "op-session secrets CLI integration agent skill": "op-session secrets CLI intégration agent compétence"
+    "op-session secrets CLI integration agent skill": "op-session secrets CLI intégration agent compétence",
+    "Orchestrator": "Orchestrateur"
   },
   "ja": {
     "1Password Environments": "1Password の環境",
@@ -176,7 +179,8 @@
     "The first command for an Environment asks you to approve access in the desktop app.": "環境の最初のコマンドを実行すると、デスクトップアプリでアクセスの承認が求められます。",
     "What this bot is for, what it should do, and anything it should always keep in mind.": "このボットの目的、やるべきこと、常に意識しておくべきこと。",
     "Yellow": "黄",
-    "op-session secrets CLI integration agent skill": "op-session シークレット CLI 連携 エージェント スキル"
+    "op-session secrets CLI integration agent skill": "op-session シークレット CLI 連携 エージェント スキル",
+    "Orchestrator": "オーケストレーター"
   },
   "ko": {
     "1Password Environments": "1Password 환경",
@@ -222,7 +226,8 @@
     "The first command for an Environment asks you to approve access in the desktop app.": "환경에서 첫 명령을 실행하면 데스크톱 앱에서 접근 승인을 요청합니다.",
     "What this bot is for, what it should do, and anything it should always keep in mind.": "이 봇의 용도, 해야 할 일, 항상 염두에 둘 내용.",
     "Yellow": "노란색",
-    "op-session secrets CLI integration agent skill": "op-session 비밀 CLI 통합 에이전트 스킬"
+    "op-session secrets CLI integration agent skill": "op-session 비밀 CLI 통합 에이전트 스킬",
+    "Orchestrator": "오케스트레이터"
   },
   "pt-BR": {
     "1Password Environments": "Ambientes do 1Password",
@@ -268,7 +273,8 @@
     "The first command for an Environment asks you to approve access in the desktop app.": "O primeiro comando em um ambiente solicita aprovação de acesso no aplicativo de desktop.",
     "What this bot is for, what it should do, and anything it should always keep in mind.": "Para que serve este bot, o que ele deve fazer e o que ele deve sempre ter em mente.",
     "Yellow": "Amarelo",
-    "op-session secrets CLI integration agent skill": "op-session segredos CLI integração agente habilidade"
+    "op-session secrets CLI integration agent skill": "op-session segredos CLI integração agente habilidade",
+    "Orchestrator": "Orquestrador"
   },
   "ru": {
     "1Password Environments": "Окружения 1Password",
@@ -314,7 +320,8 @@
     "The first command for an Environment asks you to approve access in the desktop app.": "Первая команда для окружения запрашивает разрешение на доступ в приложении для компьютера.",
     "What this bot is for, what it should do, and anything it should always keep in mind.": "Для чего этот бот, что он должен делать и что всегда учитывать.",
     "Yellow": "Жёлтый",
-    "op-session secrets CLI integration agent skill": "op-session секреты CLI интеграция агент навык"
+    "op-session secrets CLI integration agent skill": "op-session секреты CLI интеграция агент навык",
+    "Orchestrator": "Оркестратор"
   },
   "sv": {
     "1Password Environments": "1Password-miljöer",
@@ -359,7 +366,8 @@
     "The first command for an Environment asks you to approve access in the desktop app.": "Det första kommandot för en miljö ber dig godkänna åtkomst i skrivbordsappen.",
     "What this bot is for, what it should do, and anything it should always keep in mind.": "Vad den här boten är till för, vad den ska göra och vad den alltid ska tänka på.",
     "Yellow": "Gul",
-    "op-session secrets CLI integration agent skill": "op-session hemligheter CLI integrering agent färdighet"
+    "op-session secrets CLI integration agent skill": "op-session hemligheter CLI integrering agent färdighet",
+    "Orchestrator": "Orkestrerare"
   },
   "zh": {
     "1Password Environments": "1Password 环境",
@@ -405,6 +413,7 @@
     "The first command for an Environment asks you to approve access in the desktop app.": "首次为某个环境运行命令时，桌面应用会请求你批准访问。",
     "What this bot is for, what it should do, and anything it should always keep in mind.": "这个机器人的用途、要做什么，以及需要始终牢记的内容。",
     "Yellow": "黄色",
-    "op-session secrets CLI integration agent skill": "op-session 密钥 CLI 集成 代理 技能"
+    "op-session secrets CLI integration agent skill": "op-session 密钥 CLI 集成 代理 技能",
+    "Orchestrator": "协调器"
   }
 }

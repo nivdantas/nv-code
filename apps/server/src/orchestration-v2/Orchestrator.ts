@@ -1,3 +1,10 @@
+import {
+  isNvOrchestratorId,
+  NV_BOT_COMMAND_PREFIX,
+  NvBotProvisioning,
+  nvBotLifecycleError,
+  singleBotMessage,
+} from "../nv/bots/orchestratorPolicy.ts";
 import type {
   OrchestrationV2ThreadLinkMetadata,
   GuestShareId,
@@ -16320,6 +16327,27 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         }
       | undefined;
     let updateDelegatedCompletionOnlyRunId: RunId | undefined;
+    if (
+      command.type === "thread.archive" ||
+      command.type === "thread.unarchive" ||
+      command.type === "thread.delete" ||
+      command.type === "thread.settle" ||
+      command.type === "thread.snooze" ||
+      command.type === "thread.project.adopt-folder"
+    ) {
+      const thread = yield* findThread(command.threadId);
+      const cause =
+        thread === null
+          ? undefined
+          : nvBotLifecycleError(command, thread, yield* NvBotProvisioning);
+      if (cause !== undefined) {
+        return yield* new OrchestratorDispatchError({
+          commandId: command.commandId,
+          commandType: command.type,
+          cause,
+        });
+      }
+    }
     switch (command.type) {
       case "thread.create": {
         yield* dispatchThreadCreate(command, events);
@@ -16345,6 +16373,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
               (cause) => new OrchestratorProjectionError({ threadId: command.threadId, cause }),
             ),
           );
+        if (thread.botConfig != null) break;
         if (
           thread.settledOverride !== null ||
           DateTime.toEpochMillis(thread.updatedAt) > DateTime.toEpochMillis(command.snapshotAt)
@@ -17131,6 +17160,18 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
 
   // dispatchWithReceiptEffect owns the dispatch span; this wrapper selects the thread locks.
   const dispatchWithReceipt = Effect.fnUntraced(function* (command: OrchestrationV2ServerCommand) {
+    if (
+      (command.commandId.startsWith(NV_BOT_COMMAND_PREFIX) ||
+        (command.type === "thread.create" &&
+          (command.botConfig !== undefined || isNvOrchestratorId(command.threadId)))) &&
+      (yield* NvBotProvisioning) !== commandThreadId(command)
+    ) {
+      return yield* new OrchestratorDispatchError({
+        commandId: command.commandId,
+        commandType: command.type,
+        cause: singleBotMessage,
+      });
+    }
     // The latest stable run is the one with a checkpoint. Wait for a just-completed run's capture,
     // outside the locks its commit takes, so a fork right after a turn starts from that turn.
     if (

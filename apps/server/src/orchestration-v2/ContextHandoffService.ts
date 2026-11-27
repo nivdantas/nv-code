@@ -289,25 +289,6 @@ function historicalMessages(
   });
 }
 
-/** A thread's history as a `full_thread_summary` handoff in plain text, for a new thread's prompt. */
-export function renderThreadSummaryHandoff(input: {
-  readonly sourceThreadId: ThreadId;
-  readonly runs: ReadonlyArray<Pick<OrchestrationV2Run, "id" | "ordinal" | "status">>;
-  readonly items: ReadonlyArray<OrchestrationV2TurnItem>;
-  readonly budget: number;
-}): string {
-  const selected = selectHistory({
-    messages: historicalMessages(input.items, input.runs),
-    coverage: handoffCoverage({
-      threadId: input.sourceThreadId,
-      coveredRunOrdinals: visibleDeltaRunOrdinals(input, input.items),
-      items: input.items,
-    }),
-    budget: input.budget,
-  });
-  return `Context handoff (full_thread_summary):\n${renderHistory(selected.messages, selected.context)}`;
-}
-
 const SIDE_CHAT_CONTEXT_MAX_CHARS = 8_000;
 
 /** Oldest first; raw parent items are summarized only until the context cap is reached. */

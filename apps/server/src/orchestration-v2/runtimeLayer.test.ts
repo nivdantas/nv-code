@@ -1,3 +1,4 @@
+import { provisionNvBot } from "../nv/bots/orchestratorPolicy.ts";
 import { PullRequestProviderError } from "@t3tools/source-control-core/server/PullRequestProvider";
 import { PullRequestUnavailableError, SourceControlProviderKind } from "@t3tools/contracts";
 import { limitRecoveryCommand } from "./UsageLimitRecoveryWorker.ts";
@@ -3097,21 +3098,24 @@ it.layer(layerTest)("OrchestrationV2LayerLive", (it) => {
         bot: boolean,
       ) {
         const threadId = ThreadId.make(`runtime-bot-question-${name}`);
-        yield* orchestrator.dispatch({
-          type: "thread.create",
-          commandId: CommandId.make(`${threadId}:create`),
-          createdBy: "user",
-          creationSource: "web",
+        yield* provisionNvBot(
           threadId,
-          projectId: ProjectId.make(`${threadId}:project`),
-          title: "Blocking question",
-          modelSelection,
-          runtimeMode: "full-access",
-          interactionMode: "default",
-          branch: null,
-          worktreePath: process.cwd(),
-          ...(bot ? { botConfig: { enabled: true, muteChildren: false } } : {}),
-        });
+          orchestrator.dispatch({
+            type: "thread.create",
+            commandId: CommandId.make(`${threadId}:create`),
+            createdBy: "user",
+            creationSource: "web",
+            threadId,
+            projectId: ProjectId.make(`${threadId}:project`),
+            title: "Blocking question",
+            modelSelection,
+            runtimeMode: "full-access",
+            interactionMode: "default",
+            branch: null,
+            worktreePath: process.cwd(),
+            ...(bot ? { botConfig: { enabled: true, muteChildren: false } } : {}),
+          }),
+        );
         const { requestId } = yield* seedPendingQuestion(threadId, null, {
           type: "live",
           providerSessionId,

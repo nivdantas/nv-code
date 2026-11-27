@@ -188,62 +188,62 @@ it.effect(
   },
 );
 
-it.effect(
-  "starts a Bot from a thread with a handoff, taking the thread and its workers as workers",
-  () => {
-    const orchestration = makeOrchestration();
-    const source = orchestration.addThread("thread:source", { title: "Fix the flaky test" });
-    orchestration.addThread("thread:helper", { groupedUnderThreadId: source.id });
-    orchestration.addThread("thread:child", {
-      lineage: { parentThreadId: source.id },
-    });
-    return Effect.gen(function* () {
-      const bots = yield* BotService.BotService;
-      const { threadId } = yield* bots.start({ threadId: source.id });
-
-      const [launched] = orchestration.launched;
-      assert.deepStrictEqual(
-        [launched?.threadId, launched?.projectId],
-        [threadId, ProjectId.make("project:scratch")],
-      );
-      assert.include(launched?.text, "Context handoff (full_thread_summary)");
-      assert.deepStrictEqual(orchestration.threads.get(threadId)?.botConfig, bot);
-      assert.isTrue(yield* bots.isBot(threadId));
-      assert.isNull(source.botConfig);
-      assert.deepStrictEqual(
-        orchestration.dispatched.map((command) => command.threadId),
-        [ThreadId.make("thread:helper"), source.id],
-      );
-      assert.strictEqual(source.groupedUnderThreadId, threadId);
-
-      for (const refused of [threadId, ThreadId.make("thread:child")]) {
-        const error = yield* bots.start({ threadId: refused }).pipe(Effect.flip);
-        assert.strictEqual(error.reason, "cannot_start");
-      }
-    }).pipe(provideBots(orchestration));
-  },
-);
-
-it.effect("creates a Bot outside any project, its instructions saved as its preferences", () => {
+it.effect("creates exactly one idle Orchestrator in scratch at startup", () => {
   const orchestration = makeOrchestration();
   return Effect.gen(function* () {
     const bots = yield* BotService.BotService;
-    const { threadId } = yield* bots.create({
-      title: "Chief of staff",
-      instructions: "  Keep me posted on every project.  ",
-      modelSelection: model,
-    });
+    const ensure = bots.ensureOrchestrator(Effect.succeed(model));
+    const [threadId, repeated] = yield* Effect.all([ensure, ensure], { concurrency: 2 });
+    assert.strictEqual(threadId, repeated);
+    assert.strictEqual(yield* ensure, threadId);
 
-    const [launched] = orchestration.launched;
-    assert.deepStrictEqual(
-      [launched?.threadId, launched?.projectId],
-      [threadId, ProjectId.make("project:scratch")],
-    );
-    assert.include(launched?.text, "Keep me posted on every project.");
+    assert.deepStrictEqual(orchestration.launched, [
+      {
+        threadId,
+        projectId: ProjectId.make("project:scratch"),
+        commandId: "nv:bot:create:nv-orchestrator",
+        text: undefined,
+      },
+    ]);
+    assert.strictEqual(orchestration.threads.get(threadId)?.title, "Orchestrator");
     assert.isTrue(yield* bots.isBot(threadId));
+    yield* bots.writePreferences({ threadId, contents: "Remember my preferences." });
+    yield* ensure;
     assert.strictEqual(
       (yield* bots.readFiles({ threadId })).preferences,
-      "Keep me posted on every project.\n",
+      "Remember my preferences.",
     );
+
+    const refused = yield* bots
+      .create({ title: "Another Bot", instructions: "", modelSelection: model })
+      .pipe(Effect.flip);
+    const start = yield* bots.start({ threadId }).pipe(Effect.flip);
+    assert.include(refused.message, "Additional Bots cannot be created");
+    assert.strictEqual(refused.message, start.message);
+    assert.lengthOf(orchestration.launched, 1);
+  }).pipe(provideBots(orchestration));
+});
+
+it.effect("keeps the oldest live Bot and moves the other Bots' workers to it", () => {
+  const orchestration = makeOrchestration();
+  const newest = orchestration.addThread("newest", {
+    botConfig: bot,
+    createdAt: "2026-11-20T01:00:00Z",
+  });
+  const oldest = orchestration.addThread("oldest", {
+    botConfig: bot,
+    createdAt: "2026-11-20T00:00:00Z",
+    settledOverride: "settled",
+  });
+  const worker = orchestration.addThread("worker", { groupedUnderThreadId: newest.id });
+  return Effect.gen(function* () {
+    const bots = yield* BotService.BotService;
+    const ensured = yield* bots.ensureOrchestrator(Effect.succeed(model));
+    assert.strictEqual(ensured, oldest.id);
+    assert.isTrue(yield* bots.isBot(oldest.id));
+    assert.isNull(oldest.settledOverride);
+    assert.isFalse(yield* bots.isBot(newest.id));
+    assert.strictEqual(worker.groupedUnderThreadId, oldest.id);
+    assert.isEmpty(orchestration.launched);
   }).pipe(provideBots(orchestration));
 });

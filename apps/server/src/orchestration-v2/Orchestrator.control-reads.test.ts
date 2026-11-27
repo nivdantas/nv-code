@@ -1,3 +1,4 @@
+import { provisionNvBot } from "../nv/bots/orchestratorPolicy.ts";
 import * as NodeSqlite from "node:sqlite";
 
 import { assert, it } from "@effect/vitest";
@@ -3552,7 +3553,23 @@ it.effect("keeps thread groups one level deep without bumping activity", () =>
     assert.equal((yield* projections.getThread(launched)).groupedUnderThreadId, leader);
 
     // Workers of a Bot may work in another project; only a Bot's worker can be muted.
-    yield* create(bot, { botConfig: { enabled: true, muteChildren: false } });
+    const createBot = create(bot, { botConfig: { enabled: true, muteChildren: false } });
+    assert.isTrue(Exit.isFailure(yield* Effect.exit(createBot)));
+    yield* provisionNvBot(bot, createBot);
+    assert.deepEqual(yield* projections.listLiveBotIds, [bot]);
+    for (const type of ["thread.archive", "thread.delete"] as const) {
+      const rejected = yield* orchestrator
+        .dispatch({
+          type,
+          commandId: CommandId.make(`reject:${type}`),
+          threadId: bot,
+        })
+        .pipe(Effect.flip);
+      assert.include(
+        String(rejected.cause),
+        type === "thread.archive" ? "cannot be archived" : "cannot be deleted",
+      );
+    }
     yield* create(elsewhere, {
       groupedUnderThreadId: bot,
       projectId: ProjectId.make("project:elsewhere"),

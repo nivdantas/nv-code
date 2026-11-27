@@ -2,6 +2,7 @@ import type { ContextMenuItem } from "@t3tools/contracts";
 import type { SnoozePreset } from "@t3tools/client-runtime/state/thread-settled";
 import { msg } from "gt-react";
 
+import { showOrchestratorThreadAction } from "../nv/orchestrator/threadActions";
 import { m, type MessageResolver } from "../i18n/messages";
 
 export type ThreadActionMenuId =
@@ -24,7 +25,6 @@ export type ThreadActionMenuId =
   | "regenerate-title"
   | "mark-unread"
   | "share-guest"
-  | "start-bot"
   | "remove-from-group"
   | "ungroup"
   | "copy"
@@ -263,15 +263,6 @@ export function buildThreadActionMenuItems(
     ...(state.grouping === undefined
       ? []
       : [
-          ...(state.grouping.isBot
-            ? []
-            : [
-                {
-                  id: "start-bot" as const,
-                  label: resolve(msg("Start a Bot from this thread")),
-                  icon: "bot",
-                },
-              ]),
           ...(state.grouping.isGrouped
             ? [
                 {
@@ -370,9 +361,12 @@ export function buildThreadActionMenuItems(
       icon: "trash",
     },
   ];
+  const visibleItems = items.filter((item) =>
+    showOrchestratorThreadAction(state.grouping?.isBot === true, item.id),
+  );
   return state.canOperate
-    ? items
-    : items.map((item) =>
+    ? visibleItems
+    : visibleItems.map((item) =>
         threadActionRequiresOperate(item.id) &&
         !(state.canTriage === true && isThreadTriageAction(item.id))
           ? {

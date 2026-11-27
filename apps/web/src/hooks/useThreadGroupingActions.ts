@@ -4,9 +4,7 @@ import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
-import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { isListedThreadLineage, type ScopedThreadRef, type ThreadId } from "@t3tools/contracts";
-import { useRouter } from "@tanstack/react-router";
 import { msg } from "gt-react";
 
 import type {
@@ -15,10 +13,7 @@ import type {
 } from "../components/threadActionMenu.logic";
 import { stackedThreadToast, toastManager } from "../components/ui/toast";
 import { m } from "../i18n/messages";
-import { botFilesEnvironment } from "../state/botFiles";
 import { readThreadShells } from "../state/entities";
-import { useAtomCommand } from "../state/use-atom-command";
-import { buildThreadRouteParams } from "../threadRoutes";
 import { threadEnvironment } from "../state/threads";
 import { useOrchestrationCommand } from "../state/use-orchestration-command";
 
@@ -77,13 +72,10 @@ export function resolveBulkGroupLeader<
   return leadsWorkers ? null : leader;
 }
 
-export type ThreadGroupingAction = Extract<
-  ThreadActionMenuId,
-  "start-bot" | "remove-from-group" | "ungroup"
->;
+export type ThreadGroupingAction = Extract<ThreadActionMenuId, "remove-from-group" | "ungroup">;
 
 export function isThreadGroupingAction(action: ThreadActionMenuId): action is ThreadGroupingAction {
-  return action === "start-bot" || action === "remove-from-group" || action === "ungroup";
+  return action === "remove-from-group" || action === "ungroup";
 }
 
 function reportFailure(title: string, result: Parameters<typeof isAtomCommandInterrupted>[0]) {
@@ -103,8 +95,6 @@ export function useThreadGroupingActions() {
   const setBotMuteChildren = useOrchestrationCommand(threadEnvironment.setBotMuteChildren, {
     reportFailure: false,
   });
-  const startBotCommand = useAtomCommand(botFilesEnvironment.start, { reportFailure: false });
-  const router = useRouter();
 
   const group = async (threadRef: ScopedThreadRef, leaderId: ThreadId | null) =>
     setGroup({
@@ -120,26 +110,8 @@ export function useThreadGroupingActions() {
     reportFailure(m(msg("Failed to update Bot")), result);
   };
 
-  /** A new Bot that takes this thread as its first worker; opens the Bot. */
-  const startBot = async (threadRef: ScopedThreadRef) => {
-    const result = await startBotCommand({
-      environmentId: threadRef.environmentId,
-      input: { threadId: threadRef.threadId },
-    });
-    reportFailure(m(msg("Failed to start a Bot")), result);
-    if (result._tag !== "Success") return;
-    await router.navigate({
-      to: "/$environmentId/$threadId",
-      params: buildThreadRouteParams(
-        scopeThreadRef(threadRef.environmentId, result.value.threadId),
-      ),
-    });
-  };
-
   const run = async (action: ThreadGroupingAction, threadRef: ScopedThreadRef) => {
     switch (action) {
-      case "start-bot":
-        return startBot(threadRef);
       case "remove-from-group":
         return reportFailure(m(msg("Failed to update group")), await group(threadRef, null));
       case "ungroup": {
@@ -172,5 +144,5 @@ export function useThreadGroupingActions() {
     }
   };
 
-  return { run, setMuteWorkers, startBot, groupUnder };
+  return { run, setMuteWorkers, groupUnder };
 }
