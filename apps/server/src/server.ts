@@ -1,4 +1,5 @@
 import { startOrchestrator } from "./nv/bots/startOrchestrator.ts";
+import { startOrchestratorCompaction } from "./nv/bots/orchestratorCompaction.ts";
 import * as ProviderEventLoggers from "@t3tools/provider-core/server/ProviderEventLoggers";
 import * as DatabaseMigrationProgress from "./persistence/DatabaseMigrationProgress.ts";
 import type { RelayManagedEndpointRuntimeConfig } from "@t3tools/contracts/relay";
@@ -786,6 +787,7 @@ const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
     BotWakeReactor.BotWakeReactor.pipe(Effect.flatMap((reactor) => reactor.start())),
   ).pipe(Layer.provide(BotWakeReactor.layer), Layer.provide(ProjectionStoreV2.layer)),
   Layer.effectDiscard(startOrchestrator),
+  Layer.effectDiscard(startOrchestratorCompaction).pipe(Layer.provide(ProjectionStoreV2.layer)),
   ProviderUsageLimitsIngestion.layer,
   layerProviderInstallationRefresh,
   ProviderInstallation.layer,
