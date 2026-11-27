@@ -1,6 +1,6 @@
 # NV-CODE
 
-NV-CODE is an unofficial source fork of [T3 Code Nightly](https://github.com/pingdotgg/t3code). It is independently maintained with no affiliation to T3 Tools, Inc. The starting point is [Nightly v0.1.13-nightly.20261125.5245](https://github.com/pingdotgg/t3code/releases/tag/v0.1.13-nightly.20261125.5245).
+NV-CODE is an unofficial source fork of [T3 Code Nightly](https://github.com/pingdotgg/t3code). It is independently maintained with no affiliation to T3 Tools, Inc. The current release, NV-CODE 0.1.14, is built on [Nightly v0.1.14-nightly.20261127.5345](https://github.com/pingdotgg/t3code/releases/tag/v0.1.14-nightly.20261127.5345). The fork started from [Nightly v0.1.13-nightly.20261125.5245](https://github.com/pingdotgg/t3code/releases/tag/v0.1.13-nightly.20261125.5245).
 
 ## Download
 
@@ -28,6 +28,8 @@ With Vite+, Rust, and the Xcode Command Line Tools installed, run these commands
 vp i
 vp run nv:update build
 ```
+
+To build and install straight into `/Applications` instead, run `vp run nv:update install`. It quits NV-CODE, swaps the app and reopens it; `FORK.md` has the details.
 
 The command uses the upstream nightly merged into your branch. On a fresh clone, add the upstream remote and run `git fetch upstream --tags` first. For an Intel Mac, install the `x86_64-apple-darwin` Rust target and run `vp run dist:desktop:dmg --arch x64 --build-version <upstream-version> --output-dir release/nv-code`. [Update and release instructions](FORK.md#taking-upstream-updates)
 
