@@ -16,6 +16,7 @@ NV-CODE is T3 Code Nightly with a built-in Orchestrator, sidebar profiles, usage
 | `apps/web/src/nv/i18n/`         | NV-CODE translations, keyed by English source text                                                                         |
 | `apps/server/src/nv/bots/`      | Orchestrator provisioning, lifecycle rules, and worker memory                                                              |
 | `apps/web/src/nv/orchestrator/` | Orchestrator menu, sidebar, home                                                                                           |
+| `packages/shared/src/nv/`       | `NV_TELEMETRY_ON_BY_DEFAULT`: product analytics and relay tracing are opt-in                                               |
 | `apps/desktop/src/nv/`          | Data folder names, the move from pre-rename Nightshift folders, and the Keychain key copy                                  |
 | `scripts/nv-*.ts`               | Fork tools: `i18n:nv`, `theme:nv`, `theme:nv:check`, `nv:touchpoints`, `nv:update` (`check`, `finish`, `build`, `install`) |
 
@@ -48,6 +49,8 @@ The upstream coordinator branch is still separate from the main baseline. Its im
 - packages/shared: `packages/shared/src/t3McpToolPresentation.test.ts`, `packages/shared/src/t3McpToolPresentation.ts`, `packages/shared/src/t3McpToolPresentationCopy.ts`.
 - pnpm-lock.yaml: `pnpm-lock.yaml`.
 - pnpm-workspace.yaml: `pnpm-workspace.yaml`.
+
+Opt-in telemetry: `packages/shared/src/nv/telemetry.ts` holds the default, which `otelEnvironment.ts` (relay tracing) and `AnalyticsService.ts` (product analytics) read in place of upstream's on-outside-CI. `AnalyticsService.ts` also keeps waiting for the desktop login shell when the environment says nothing, and `apps/desktop/src/ipc/methods/window.ts` answers the renderer only after that shell is read, so a shell-profile opt-in still counts. Upstream's `otelEnvironment.test.ts` mocks the default back on; the fork default is tested in `src/nv/telemetry.test.ts` and in a block appended to `AnalyticsService.test.ts`, and `relayTracing.test.ts` and `window.test.ts` assert it. Clerk's SDK telemetry is off through `telemetry={false}` on each `ClerkProvider`: `BrowserManagedAuthShell.tsx`, `ElectronManagedAuthShell.tsx` and `CloudAuthProvider.tsx`. The user telemetry docs still describe upstream's opt-out.
 
 ## Theme hooks
 

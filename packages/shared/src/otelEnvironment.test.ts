@@ -1,10 +1,14 @@
 import { assert, describe, it } from "@effect/vitest";
+import { vi } from "vite-plus/test";
 import * as ConfigProvider from "effect/ConfigProvider";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as OtlpResource from "effect/observability/OtlpResource";
 
 import * as OtelEnvironment from "./otelEnvironment.ts";
+
+// Upstream's default; NV-CODE's opt-in default is covered in `nv/telemetry.test.ts`.
+vi.mock("./nv/telemetry.ts", () => ({ NV_TELEMETRY_ON_BY_DEFAULT: true }));
 
 const load = (env: Record<string, string>) =>
   OtelEnvironment.load.pipe(Effect.provide(ConfigProvider.layer(ConfigProvider.fromEnv({ env }))));

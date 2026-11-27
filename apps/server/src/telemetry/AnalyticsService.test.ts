@@ -520,3 +520,45 @@ it("reports a WSL distro by its family, never by a name its user chose", () => {
   assert.equal(AnalyticsService.wslDistroFamily("Acme-Client-Secret-Ubuntu"), "other");
   assert.equal(AnalyticsService.wslDistroFamily("  "), undefined);
 });
+
+// NV-CODE: analytics are opt-in (`packages/shared/src/nv/telemetry.ts`).
+it.layer(Layer.mergeAll(NodeServices.layer, NodeCrypto.layer))(
+  "NV-CODE telemetry default",
+  (it) => {
+    it.effect("sends nothing unless the environment opts in", () =>
+      Effect.gen(function* () {
+        const send = (telemetryEnv: Parameters<typeof analyticsLayerWith>[2]) =>
+          sendFor(1, respondWithStatus(204), recordTwentyEvents, undefined, telemetryEnv).pipe(
+            Effect.provideService(HostProcess.Environment, {}),
+          );
+        assert.deepEqual(yield* send({}), []);
+        assert.equal((yield* send({ T3CODE_TELEMETRY_ENABLED: true })).length, 1);
+      }),
+    );
+
+    it.effect("waits for the desktop login shell, which may opt in", () =>
+      Effect.gen(function* () {
+        const env: NodeJS.ProcessEnv = { T3CODE_DESKTOP_SHELL_DISCOVERY_PENDING: "1" };
+        const batches = yield* sendFor(
+          0,
+          respondWithStatus(204),
+          Effect.gen(function* () {
+            const analytics = yield* AnalyticsService.AnalyticsService;
+            delete env.T3CODE_DESKTOP_SHELL_DISCOVERY_PENDING;
+            yield* analytics.record("test.not-opted-in");
+            yield* analytics.flush;
+            env.T3CODE_TELEMETRY_ENABLED = "true";
+            yield* analytics.record("test.opted-in");
+            yield* analytics.flush;
+          }),
+          undefined,
+          {},
+        ).pipe(Effect.provideService(HostProcess.Environment, env));
+        assert.deepEqual(
+          batches.flat().map((event) => event.event),
+          ["test.opted-in"],
+        );
+      }),
+    );
+  },
+);
