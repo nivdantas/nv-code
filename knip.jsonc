@@ -57,7 +57,6 @@
       "entry": [
         "src/bin.ts!",
         "src/claude-history-worker.ts!",
-        "src/process-launcher.ts!",
         "src/nv/opSession/skill/scripts/op-session.mjs!",
         "scripts/cli.ts",
         "scripts/fetch-expo-schema.ts",

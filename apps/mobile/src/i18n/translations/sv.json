@@ -2733,8 +2733,8 @@
   "322f9f6712e4a3a7": "{count, plural, one {{count} visad} other {{count} visade}}",
   "ccd5fc4db08374d7": "{count, plural, one {{count} testfil dold} other {{count} testfiler dolda}}",
   "cb1e1e72fc3d2382": "Testfiler inkluderade",
-  "2ab7e87f961a419e": "Visa diff för {path}, {additions} tillägg, {deletions} borttagningar, visad",
-  "e6fef106eeaa76ce": "Visa diff för {path}, {additions} tillägg, {deletions} borttagningar",
+  "71828d9827de3793": "Visa diff för {path}, {additions} tillägg, {deletions, plural, one {{deletions} borttagning} other {{deletions} borttagningar}}, visad",
+  "9103c6fa7accc088": "Visa diff för {path}, {additions} tillägg, {deletions, plural, one {{deletions} borttagning} other {{deletions} borttagningar}}",
   "a52407bfe5da5df2": "Granska filer",
   "a7764874320578a8": "Dölj testfiler",
   "186b7ac75ed4674c": "Filtrera granskningsfiler",
@@ -5746,5 +5746,9 @@
   "d0a76aa4c42ce65f": "Sök i anteckningar",
   "1ad011d70f9e01e9": "Spara en inställning",
   "e4531a60a3ee5a37": "Börja bevaka en tråd eller körning",
-  "c5bc41c84b413ae2": "Sluta bevaka en tråd eller körning"
+  "c5bc41c84b413ae2": "Sluta bevaka en tråd eller körning",
+  "f6cf1627f4acc5ef": "Kommentarens synlighet",
+  "eb1fd384ad5919dd": "Intern anteckning",
+  "b45f0b467e9406d0": "Svara kunden",
+  "15e5597f8f93ce12": "{start} till {end}"
 }
